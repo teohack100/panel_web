@@ -1,0 +1,15 @@
+node_modules/
+vendor/
+deploy_backups/
+*.tgz
+*.zip
+.env
+.vscode/
+.codex_tmp/
+__pycache__/
+templates_c/
+.vercel/
+tools/browsercheck/node_modules/
+pma-dnk/vendor/
+cookies.txt
+*.log
