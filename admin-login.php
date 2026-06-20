@@ -1,6 +1,7 @@
 <?php
 define('DOC_ROOT_PATH', __DIR__ . '/');
 require __DIR__ . '/includes/functions.php';
+$user = isset($user) ? (string)$user : '';
 
 function programmit_admin_role_allowed($userId, $userLevel) {
     if ((int)$userId === 1) {

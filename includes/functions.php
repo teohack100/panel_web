@@ -1,5 +1,7 @@
 <?php
-define('DOC_ROOT_PATH', dirname(__DIR__) . '/');
+if (!defined('DOC_ROOT_PATH')) {
+	define('DOC_ROOT_PATH', dirname(__DIR__) . '/');
+}
 require __DIR__ . '/config.php';
 if (!function_exists('each')) {
 	function each(&$array) {

@@ -951,7 +951,7 @@ function programmit_vpn_sync_logs_table_sql($db) {
     );
 }
 
-function programmit_vpn_settings_cache_bucket() {
+function &programmit_vpn_settings_cache_bucket() {
     if (!isset($GLOBALS['_programmit_vpn_settings_cache']) || !is_array($GLOBALS['_programmit_vpn_settings_cache'])) {
         $GLOBALS['_programmit_vpn_settings_cache'] = array(
             '__loaded' => 0,
