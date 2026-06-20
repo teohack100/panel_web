@@ -1,0 +1,393 @@
+generator client {
+  provider = "prisma-client-js"
+  engineType = "binary"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum GlobalRole {
+  SUPER_ADMIN
+  ADMIN
+  USER
+}
+
+enum TenantStatus {
+  TRIAL
+  ACTIVE
+  SUSPENDED
+  CANCELED
+}
+
+enum TenantRole {
+  OWNER
+  ADMIN
+  BILLING
+  OPERATOR
+  VIEWER
+}
+
+enum DomainStatus {
+  PENDING
+  ACTIVE
+  FAILED
+  SUSPENDED
+}
+
+enum CloudPanelTaskType {
+  CREATE_SITE
+  CREATE_VHOST
+  UPDATE_VHOST
+  SUSPEND_SITE
+  UNSUSPEND_SITE
+  DELETE_SITE
+  RUN_COMMAND
+}
+
+enum CloudPanelTaskStatus {
+  PENDING
+  RUNNING
+  SUCCESS
+  FAILED
+  CANCELED
+}
+
+enum RechargeStatus {
+  PENDING
+  PAID
+  FAILED
+  EXPIRED
+  CANCELED
+}
+
+enum ProductStatus {
+  ACTIVE
+  INACTIVE
+  ARCHIVED
+}
+
+enum TenantProductStatus {
+  PROVISIONING
+  ACTIVE
+  SUSPENDED
+  CANCELED
+}
+
+model User {
+  id              String             @id
+  email           String             @unique
+  fullName        String?
+  role            GlobalRole         @default(USER)
+  imageUrl        String?
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+  ownedTenants    Tenant[]           @relation("TenantOwner")
+  memberships     TenantMembership[]
+  recharges       Recharge[]
+  cloudPanelTasks CloudPanelTask[]   @relation("TaskCreatedBy")
+  auditLogs       AuditLog[]
+
+  @@map("users")
+}
+
+model Plan {
+  id                 String          @id @default(cuid())
+  code               String          @unique
+  name               String
+  description        String?
+  monthlyPriceUsd    Decimal         @default(0) @db.Decimal(12, 2)
+  creditPriceUsd     Decimal         @default(1) @db.Decimal(12, 4)
+  includedCredits    Int             @default(0)
+  maxUsers           Int             @default(100)
+  maxDomains         Int             @default(5)
+  maxCloudPanelNodes Int             @default(1)
+  isActive           Boolean         @default(true)
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+  tenants            Tenant[]
+  systemProducts     SystemProduct[] @relation("SystemDefaultPlan")
+
+  @@map("plans")
+}
+
+model Tenant {
+  id              String             @id @default(cuid())
+  slug            String             @unique
+  name            String
+  brandName       String?
+  status          TenantStatus       @default(TRIAL)
+  ownerId         String
+  owner           User               @relation("TenantOwner", fields: [ownerId], references: [id], onDelete: Restrict)
+  planId          String?
+  plan            Plan?              @relation(fields: [planId], references: [id], onDelete: SetNull)
+  creditBalance   Decimal            @default(0) @db.Decimal(16, 4)
+  timezone        String             @default("UTC")
+  metadata        Json?
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+  domains         TenantDomain[]
+  memberships     TenantMembership[]
+  cloudPanelSites CloudPanelSite[]
+  recharges       Recharge[]
+  webhookEvents   WebhookEvent[]
+  paymentMethods  PaymentMethod[]
+  cloudPanelTasks CloudPanelTask[]
+  products        TenantProduct[]
+  whiteLabel      WhiteLabelProfile?
+  auditLogs       AuditLog[]
+
+  @@map("tenants")
+}
+
+model TenantMembership {
+  id        String     @id @default(cuid())
+  tenantId  String
+  userId    String
+  role      TenantRole @default(VIEWER)
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  tenant    Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, userId])
+  @@index([userId])
+  @@map("tenant_memberships")
+}
+
+model TenantDomain {
+  id              String          @id @default(cuid())
+  tenantId        String
+  hostname        String          @unique
+  status          DomainStatus    @default(PENDING)
+  isPrimary       Boolean         @default(false)
+  sslEnabled      Boolean         @default(false)
+  cloudPanelSiteId String?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  tenant          Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  cloudPanelSite  CloudPanelSite? @relation(fields: [cloudPanelSiteId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, status])
+  @@map("tenant_domains")
+}
+
+model SystemProduct {
+  id            String              @id @default(cuid())
+  key           String              @unique
+  name          String
+  description   String?
+  status        ProductStatus       @default(ACTIVE)
+  defaultPlanId String?
+  defaultPlan   Plan?               @relation("SystemDefaultPlan", fields: [defaultPlanId], references: [id], onDelete: SetNull)
+  metadata      Json?
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+  tenants       TenantProduct[]
+
+  @@index([status])
+  @@map("system_products")
+}
+
+model TenantProduct {
+  id            String              @id @default(cuid())
+  tenantId      String
+  productId     String
+  status        TenantProductStatus @default(PROVISIONING)
+  provisionRef  String?
+  config        Json?
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+  tenant        Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  product       SystemProduct       @relation(fields: [productId], references: [id], onDelete: Restrict)
+
+  @@unique([tenantId, productId])
+  @@index([productId, status])
+  @@map("tenant_products")
+}
+
+model WhiteLabelProfile {
+  id                  String    @id @default(cuid())
+  tenantId            String    @unique
+  companyLegalName    String?
+  supportEmail        String?
+  supportWhatsapp     String?
+  logoUrl             String?
+  faviconUrl          String?
+  primaryColor        String?
+  secondaryColor      String?
+  customCss           String?
+  showPoweredBy       Boolean   @default(true)
+  appName             String?
+  loginHeadline       String?
+  loginSubheadline    String?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+  tenant              Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@map("white_label_profiles")
+}
+
+model CloudPanelNode {
+  id              String          @id @default(cuid())
+  key             String          @unique
+  name            String
+  baseUrl         String
+  username        String?
+  secretEncrypted String?
+  agentTokenHash  String          @unique
+  isEnabled       Boolean         @default(true)
+  lastSeenAt      DateTime?
+  metadata        Json?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  sites           CloudPanelSite[]
+  tasks           CloudPanelTask[]
+
+  @@map("cloudpanel_nodes")
+}
+
+model CloudPanelSite {
+  id             String          @id @default(cuid())
+  tenantId       String
+  nodeId         String
+  externalSiteId String?
+  systemUser     String?
+  webRoot        String?
+  phpVersion     String?
+  status         DomainStatus    @default(PENDING)
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  tenant         Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  node           CloudPanelNode  @relation(fields: [nodeId], references: [id], onDelete: Restrict)
+  domains        TenantDomain[]
+
+  @@unique([tenantId, nodeId])
+  @@index([nodeId, status])
+  @@map("cloudpanel_sites")
+}
+
+model CloudPanelTask {
+  id            String               @id @default(cuid())
+  nodeId        String
+  tenantId      String?
+  createdByUserId String?
+  taskType      CloudPanelTaskType
+  status        CloudPanelTaskStatus @default(PENDING)
+  payload       Json
+  result        Json?
+  errorMessage  String?
+  attempts      Int                  @default(0)
+  maxAttempts   Int                  @default(5)
+  runAfter      DateTime             @default(now())
+  lockedAt      DateTime?
+  completedAt   DateTime?
+  idempotencyKey String?             @unique
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
+  node          CloudPanelNode       @relation(fields: [nodeId], references: [id], onDelete: Restrict)
+  tenant        Tenant?              @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+  createdBy     User?                @relation("TaskCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
+
+  @@index([nodeId, status, runAfter])
+  @@index([tenantId, status])
+  @@map("cloudpanel_tasks")
+}
+
+model PaymentMethod {
+  id             String    @id @default(cuid())
+  tenantId       String
+  key            String
+  provider       String
+  displayName    String
+  minUsd         Decimal   @default(1) @db.Decimal(12, 2)
+  maxUsd         Decimal   @default(1000) @db.Decimal(12, 2)
+  usdToBobRate   Decimal   @default(1) @db.Decimal(12, 4)
+  feeFixedUsd    Decimal   @default(0) @db.Decimal(12, 4)
+  feePercent     Decimal   @default(0) @db.Decimal(6, 3)
+  creditPriceUsd Decimal?  @db.Decimal(12, 4)
+  isEnabled      Boolean   @default(true)
+  config         Json?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  tenant         Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  recharges      Recharge[]
+
+  @@unique([tenantId, key])
+  @@index([tenantId, isEnabled])
+  @@map("payment_methods")
+}
+
+model Recharge {
+  id              String         @id @default(cuid())
+  tenantId        String
+  userId          String
+  paymentMethodId String
+  amountUsd       Decimal        @db.Decimal(12, 2)
+  amountLocal     Decimal?       @db.Decimal(12, 2)
+  currency        String         @default("USD")
+  creditsGranted  Decimal        @default(0) @db.Decimal(16, 4)
+  status          RechargeStatus @default(PENDING)
+  providerRef     String?
+  checkoutUrl     String?
+  qrPayload       String?
+  paidAt          DateTime?
+  metadata        Json?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  tenant          Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user            User           @relation(fields: [userId], references: [id], onDelete: Restrict)
+  paymentMethod   PaymentMethod  @relation(fields: [paymentMethodId], references: [id], onDelete: Restrict)
+
+  @@index([tenantId, createdAt])
+  @@index([status, providerRef])
+  @@map("recharges")
+}
+
+model WebhookEvent {
+  id           String   @id @default(cuid())
+  tenantId     String
+  provider     String
+  eventType    String
+  eventId      String?
+  payload      Json
+  receivedAt   DateTime @default(now())
+  processedAt  DateTime?
+  status       String   @default("received")
+  errorMessage String?
+  tenant       Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, provider, receivedAt])
+  @@unique([provider, eventId])
+  @@map("webhook_events")
+}
+
+model ControlSetting {
+  id          String   @id @default(cuid())
+  key         String   @unique
+  value       Json
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("control_settings")
+}
+
+model AuditLog {
+  id          String   @id @default(cuid())
+  action      String
+  actorUserId String?
+  tenantId    String?
+  targetType  String?
+  targetId    String?
+  ipAddress   String?
+  userAgent   String?
+  metadata    Json?
+  createdAt   DateTime @default(now())
+  actor       User?    @relation(fields: [actorUserId], references: [id], onDelete: SetNull)
+  tenant      Tenant?  @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+
+  @@index([action, createdAt])
+  @@index([tenantId, createdAt])
+  @@map("audit_logs")
+}
