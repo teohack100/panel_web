@@ -1,15 +1,54 @@
-node_modules/
-vendor/
-deploy_backups/
-*.tgz
-*.zip
-.env
+# OS / editor
+.DS_Store
+Thumbs.db
 .vscode/
+.idea/
+
+# Local tooling
 .codex_tmp/
-__pycache__/
-templates_c/
+.trae/
 .vercel/
+
+# Python temp
+__pycache__/
+*.py[cod]
+
+# Dependencies
+node_modules/
 tools/browsercheck/node_modules/
 pma-dnk/vendor/
-cookies.txt
+
+# External project handled in its own repo
+control-plane-next/
+
+# Runtime / cache / temp
+/templates_c/*
+!/templates_c/.gitkeep
+/pma-dnk/tmp/
+/serverside/duration/logs/
+/serverside/voucher/logs/
 *.log
+
+# User-generated files
+/profile/*
+!/profile/.gitkeep
+!/profile/default.png
+/serverside/_uploads/*
+!/serverside/_uploads/.gitkeep
+/logo/branding/*
+!/logo/branding/.gitkeep
+/logo/metodos/*
+!/logo/metodos/.gitkeep
+
+# Local env / secrets
+.env
+.env.*
+!.env.example
+cookies.txt
+
+# Local backups / dumps / packages
+/deploy_backups/
+/_deploy_panel_web.tgz
+/programm_panel.sql
+/dvdflick_setup_1.3.0.7.exe
+/tmp_test_restore.txt
