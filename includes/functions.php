@@ -573,6 +573,55 @@ function programmit_user_metric_cache_set($userId, $metricKey, $value) {
 	return (bool)@file_put_contents($file, $payload, LOCK_EX);
 }
 
+function programmit_runtime_table_exists($db, $tableName) {
+	static $cache = array();
+
+	$tableName = strtolower(trim((string)$tableName));
+	if ($tableName === '' || !is_object($db) || !method_exists($db, 'sql_query') || !method_exists($db, 'sql_numrows') || !method_exists($db, 'SanitizeForSQL')) {
+		return false;
+	}
+
+	$driver = isset($GLOBALS['DB_driver']) ? strtolower(trim((string)$GLOBALS['DB_driver'])) : 'mysql';
+	$dbName = isset($GLOBALS['DB_name']) ? trim((string)$GLOBALS['DB_name']) : '';
+	$dbSchema = isset($GLOBALS['DB_schema']) ? trim((string)$GLOBALS['DB_schema']) : '';
+	$cacheKey = $driver . '|' . $dbName . '|' . $dbSchema . '|' . $tableName;
+	if (array_key_exists($cacheKey, $cache)) {
+		return (bool)$cache[$cacheKey];
+	}
+
+	$exists = false;
+	if ($driver === 'pgsql') {
+		if ($dbSchema === '') {
+			$dbSchema = 'public';
+		}
+		$result = $db->sql_query(
+			"SELECT table_name
+			FROM information_schema.tables
+			WHERE table_schema='" . $db->SanitizeForSQL($dbSchema) . "'
+			AND table_name='" . $db->SanitizeForSQL($tableName) . "'
+			LIMIT 1"
+		);
+	} else {
+		if ($dbName === '') {
+			$dbName = 'programm_panel';
+		}
+		$result = $db->sql_query(
+			"SELECT table_name
+			FROM information_schema.tables
+			WHERE table_schema='" . $db->SanitizeForSQL($dbName) . "'
+			AND table_name='" . $db->SanitizeForSQL($tableName) . "'
+			LIMIT 1"
+		);
+	}
+
+	if ($result && $db->sql_numrows($result) > 0) {
+		$exists = true;
+	}
+
+	$cache[$cacheKey] = $exists;
+	return $exists;
+}
+
 function ran_code() {
 	$chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
 	srand((double)microtime()*1000000);
@@ -629,13 +678,15 @@ if((int)$user_id_2 > 0){
 	$chat_cached = programmit_user_metric_cache_get((int)$user_id_2, 'chat_seen', 20);
 	if($chat_cached !== null){
 		$chat_count = (int)$chat_cached;
-	}else{
+	}else if(programmit_runtime_table_exists($db, 'chat')){
 		$chat_support = $db->sql_query("SELECT COUNT(*) AS cnt FROM chat WHERE chat_status='seen' AND chat_id2 = '".$db->SanitizeForSQL($user_id_2)."'");
 		if($chat_support){
 			$chat_row = $db->sql_fetchrow($chat_support);
 			$chat_count = isset($chat_row['cnt']) ? (int)$chat_row['cnt'] : 0;
 		}
 		programmit_user_metric_cache_set((int)$user_id_2, 'chat_seen', (int)$chat_count);
+	}else{
+		programmit_user_metric_cache_set((int)$user_id_2, 'chat_seen', 0);
 	}
 }
 if($chat_count > 0){
@@ -651,7 +702,7 @@ if((int)$user_id_2 > 0){
 	$staff_cached = programmit_user_metric_cache_get((int)$user_id_2, $staffCacheKey, 20);
 	if($staff_cached !== null){
 		$staff_count = (int)$staff_cached;
-	}else{
+	}else if(programmit_runtime_table_exists($db, 'support_ticket')){
 		if($user_id_2 == 1 || $user_id_2 == 5){
 			$staff_support = $db->sql_query("SELECT COUNT(*) AS cnt FROM support_ticket WHERE ticket_status IN ('customer-reply','open')");
 		}else{
@@ -662,6 +713,8 @@ if((int)$user_id_2 > 0){
 			$staff_count = isset($staff_row['cnt']) ? (int)$staff_row['cnt'] : 0;
 		}
 		programmit_user_metric_cache_set((int)$user_id_2, $staffCacheKey, (int)$staff_count);
+	}else{
+		programmit_user_metric_cache_set((int)$user_id_2, $staffCacheKey, 0);
 	}
 }
 if($staff_count > 0){
