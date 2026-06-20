@@ -34,6 +34,21 @@ Estas rutas no deben tratarse como codigo estatico:
 
 En VPS, estas carpetas deben existir y tener permisos de escritura para el usuario del servidor web.
 
+Comandos base en Ubuntu/Apache:
+
+```bash
+sudo chown -R www-data:www-data /var/www/panel_web/templates_c /var/www/panel_web/profile /var/www/panel_web/serverside/_uploads /var/www/panel_web/logo/branding /var/www/panel_web/logo/metodos
+sudo find /var/www/panel_web/templates_c /var/www/panel_web/profile /var/www/panel_web/serverside/_uploads /var/www/panel_web/logo/branding /var/www/panel_web/logo/metodos -type d -exec chmod 775 {} \;
+sudo find /var/www/panel_web/templates_c /var/www/panel_web/profile /var/www/panel_web/serverside/_uploads /var/www/panel_web/logo/branding /var/www/panel_web/logo/metodos -type f -exec chmod 664 {} \;
+sudo find /var/www/panel_web/templates_c -mindepth 1 ! -name '.gitkeep' -delete
+sudo -u www-data php /var/www/panel_web/tools/doctor.php
+```
+
+Nota importante:
+
+- No validar permisos con `sudo php tools/doctor.php`, porque `root` puede dar un falso positivo.
+- En produccion, el chequeo correcto es con `sudo -u www-data php /var/www/panel_web/tools/doctor.php`.
+
 ## 4. Flujo de trabajo recomendado
 
 1. Trabajar y probar en local.
@@ -106,3 +121,4 @@ Regla importante:
 6. Revisar permisos de `templates_c/`, `profile/`, `serverside/_uploads/`, `logo/branding/` y `logo/metodos/`.
 7. Guardar las credenciales finales fuera del repo.
 8. Si el proyecto pasa a cliente final, cambiar la clave inicial apenas se valide el acceso.
+9. En VPS Linux, correr `sudo -u www-data php /var/www/panel_web/tools/doctor.php` antes de dar el deploy por cerrado.

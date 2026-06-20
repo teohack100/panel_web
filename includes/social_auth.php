@@ -794,7 +794,9 @@ function programmit_social_upsert_link($db, $provider, $providerUid, $userId, $e
 }
 
 function programmit_social_set_cookie($name, $value, $expire) {
-	$secure = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off');
+	$secure = function_exists('programmit_request_is_https')
+		? programmit_request_is_https()
+		: (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off');
 	$params = array(
 		'expires' => (int)$expire,
 		'path' => '/',

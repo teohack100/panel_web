@@ -1,6 +1,56 @@
 <?PHP
 include __DIR__ . '/../phpmailer/PHPMailerAutoload.php';
 
+if (!function_exists('programmit_request_is_https')) {
+    function programmit_request_is_https()
+    {
+        if (!empty($_SERVER['HTTPS']) && strtolower((string)$_SERVER['HTTPS']) !== 'off' && (string)$_SERVER['HTTPS'] !== '0') {
+            return true;
+        }
+
+        if (!empty($_SERVER['REQUEST_SCHEME']) && strcasecmp((string)$_SERVER['REQUEST_SCHEME'], 'https') === 0) {
+            return true;
+        }
+
+        if (!empty($_SERVER['SERVER_PORT']) && (string)$_SERVER['SERVER_PORT'] === '443') {
+            return true;
+        }
+
+        if (!empty($_SERVER['HTTP_X_FORWARDED_PROTO'])) {
+            $forwardedProto = explode(',', (string)$_SERVER['HTTP_X_FORWARDED_PROTO']);
+            foreach ($forwardedProto as $proto) {
+                if (strcasecmp(trim((string)$proto), 'https') === 0) {
+                    return true;
+                }
+            }
+        }
+
+        if (!empty($_SERVER['HTTP_X_FORWARDED_SSL'])) {
+            $forwardedSsl = strtolower(trim((string)$_SERVER['HTTP_X_FORWARDED_SSL']));
+            if (in_array($forwardedSsl, array('1', 'on', 'true', 'yes'), true)) {
+                return true;
+            }
+        }
+
+        if (!empty($_SERVER['HTTP_FRONT_END_HTTPS'])) {
+            $frontEndHttps = strtolower(trim((string)$_SERVER['HTTP_FRONT_END_HTTPS']));
+            if ($frontEndHttps !== 'off' && $frontEndHttps !== '0') {
+                return true;
+            }
+        }
+
+        if (!empty($_SERVER['HTTP_CF_VISITOR']) && stripos((string)$_SERVER['HTTP_CF_VISITOR'], '"scheme":"https"') !== false) {
+            return true;
+        }
+
+        if (!empty($_SERVER['HTTP_FORWARDED']) && preg_match('/proto\s*=\s*https/i', (string)$_SERVER['HTTP_FORWARDED'])) {
+            return true;
+        }
+
+        return false;
+    }
+}
+
 class mysql_db
 {
     var $success_message;
@@ -326,14 +376,14 @@ class mysql_db
 
     function GetAbsoluteURLFolder()
     {
-        $scriptFolder = (isset($_SERVER['HTTPS']) && ($_SERVER['HTTPS'] == 'on')) ? 'https://' : 'http://';
+        $scriptFolder = programmit_request_is_https() ? 'https://' : 'http://';
         $scriptFolder .= $_SERVER['HTTP_HOST'] . dirname($_SERVER['REQUEST_URI']);
         return $scriptFolder;
     }
 
 	function base_url()
 	{
-        $Folder = (isset($_SERVER['HTTPS']) && ($_SERVER['HTTPS'] == 'on')) ? 'https://' : 'http://' . $_SERVER['HTTP_HOST'] .'/';
+        $Folder = (programmit_request_is_https() ? 'https://' : 'http://') . $_SERVER['HTTP_HOST'] .'/';
 
         return $Folder;
 	}

@@ -37,6 +37,41 @@ function programmit_doctor_is_truthy($value)
     return in_array($value, array('1', 'true', 'yes', 'on', 'enabled'), true);
 }
 
+function programmit_doctor_runtime_user()
+{
+    if (DIRECTORY_SEPARATOR === '\\') {
+        $windowsUser = getenv('USERNAME');
+        return is_string($windowsUser) && $windowsUser !== '' ? $windowsUser : 'windows-user';
+    }
+
+    if (function_exists('posix_geteuid') && function_exists('posix_getpwuid')) {
+        $processInfo = @posix_getpwuid(posix_geteuid());
+        if (is_array($processInfo) && !empty($processInfo['name'])) {
+            return (string)$processInfo['name'];
+        }
+    }
+
+    $unixUser = getenv('USER');
+    return is_string($unixUser) && $unixUser !== '' ? $unixUser : 'unknown';
+}
+
+function programmit_doctor_can_write_dir($absolutePath)
+{
+    if (!is_dir($absolutePath) || !is_writable($absolutePath)) {
+        return false;
+    }
+
+    $probePath = @tempnam($absolutePath, 'doctor_');
+    if (!is_string($probePath) || $probePath === '') {
+        return false;
+    }
+
+    $written = @file_put_contents($probePath, 'ok');
+    $deleted = @unlink($probePath);
+
+    return $written !== false && $deleted;
+}
+
 function programmit_doctor_resolve_host($host)
 {
     $host = trim((string)$host);
@@ -55,9 +90,16 @@ function programmit_doctor_resolve_host($host)
 $projectRoot = dirname(__DIR__);
 $failures = 0;
 $warnings = 0;
+$runtimeUser = programmit_doctor_runtime_user();
 
 programmit_doctor_write('INFO', 'Proyecto', $projectRoot);
 programmit_doctor_write('INFO', 'DB activa', $DB_driver . '://' . $DB_host . ':' . $DB_port . '/' . $DB_name);
+programmit_doctor_write('INFO', 'Usuario CLI', $runtimeUser);
+
+if (DIRECTORY_SEPARATOR !== '\\' && $runtimeUser === 'root') {
+    $warnings++;
+    programmit_doctor_write('WARN', 'Permisos de runtime', 'Estas corriendo el doctor como root; repite con sudo -u www-data php tools/doctor.php para validar escritura real');
+}
 
 $envLocalPath = $projectRoot . DIRECTORY_SEPARATOR . '.env.local';
 $envPath = $projectRoot . DIRECTORY_SEPARATOR . '.env';
@@ -233,9 +275,9 @@ foreach ($writablePaths as $relativePath) {
         continue;
     }
 
-    if (!is_writable($absolutePath)) {
+    if (!programmit_doctor_can_write_dir($absolutePath)) {
         $failures++;
-        programmit_doctor_write('FAIL', 'Permiso de escritura', $relativePath);
+        programmit_doctor_write('FAIL', 'Permiso de escritura', $relativePath . ' no permite crear archivos para el runtime web');
         continue;
     }
 

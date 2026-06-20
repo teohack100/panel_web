@@ -2,6 +2,29 @@
 error_reporting(E_ERROR | E_PARSE);
 ini_set('display_errors', '1');
 
+function programmit_request_cache_scheme() {
+	$isHttps = false;
+	if (!empty($_SERVER['HTTPS']) && strtolower((string)$_SERVER['HTTPS']) !== 'off' && (string)$_SERVER['HTTPS'] !== '0') {
+		$isHttps = true;
+	} elseif (!empty($_SERVER['REQUEST_SCHEME']) && strcasecmp((string)$_SERVER['REQUEST_SCHEME'], 'https') === 0) {
+		$isHttps = true;
+	} elseif (!empty($_SERVER['SERVER_PORT']) && (string)$_SERVER['SERVER_PORT'] === '443') {
+		$isHttps = true;
+	} elseif (!empty($_SERVER['HTTP_X_FORWARDED_PROTO'])) {
+		$forwardedProto = explode(',', (string)$_SERVER['HTTP_X_FORWARDED_PROTO']);
+		foreach ($forwardedProto as $proto) {
+			if (strcasecmp(trim((string)$proto), 'https') === 0) {
+				$isHttps = true;
+				break;
+			}
+		}
+	} elseif (!empty($_SERVER['HTTP_X_FORWARDED_SSL'])) {
+		$forwardedSsl = strtolower(trim((string)$_SERVER['HTTP_X_FORWARDED_SSL']));
+		$isHttps = in_array($forwardedSsl, array('1', 'on', 'true', 'yes'), true);
+	}
+	return $isHttps ? 'https' : 'http';
+}
+
 function programmit_public_page_cache_path($pageKey) {
 	$tmpDir = rtrim((string)sys_get_temp_dir(), '/\\');
 	if ($tmpDir === '') {
@@ -15,7 +38,10 @@ function programmit_public_page_cache_path($pageKey) {
 	if ($pageKey === '') {
 		$pageKey = 'home';
 	}
-	return $cacheDir . DIRECTORY_SEPARATOR . 'public_page_' . strtolower($pageKey) . '.html';
+	$hostKey = isset($_SERVER['HTTP_HOST']) ? strtolower((string)$_SERVER['HTTP_HOST']) : 'localhost';
+	$hostKey = preg_replace('/[^a-z0-9._-]/i', '-', $hostKey);
+	$schemeKey = programmit_request_cache_scheme();
+	return $cacheDir . DIRECTORY_SEPARATOR . 'public_page_' . $schemeKey . '_' . $hostKey . '_' . strtolower($pageKey) . '.html';
 }
 
 function programmit_has_auth_cookie_present() {

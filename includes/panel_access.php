@@ -223,7 +223,9 @@ function programmit_panel_access_blocked_message_html($db) {
 }
 
 function programmit_secure_set_cookie($name, $value, $expire, $path = '/') {
-	$secure = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off');
+	$secure = function_exists('programmit_request_is_https')
+		? programmit_request_is_https()
+		: (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off');
 	$params = array(
 		'expires' => (int)$expire,
 		'path' => (string)$path,

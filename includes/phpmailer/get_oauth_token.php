@@ -29,8 +29,36 @@ use Psr\Http\Message\ResponseInterface;
 
 session_start();
 
+function programmit_mailer_request_is_https()
+{
+    if (!empty($_SERVER['HTTPS']) && strtolower((string)$_SERVER['HTTPS']) !== 'off' && (string)$_SERVER['HTTPS'] !== '0') {
+        return true;
+    }
+    if (!empty($_SERVER['REQUEST_SCHEME']) && strcasecmp((string)$_SERVER['REQUEST_SCHEME'], 'https') === 0) {
+        return true;
+    }
+    if (!empty($_SERVER['SERVER_PORT']) && (string)$_SERVER['SERVER_PORT'] === '443') {
+        return true;
+    }
+    if (!empty($_SERVER['HTTP_X_FORWARDED_PROTO'])) {
+        $forwardedProto = explode(',', (string)$_SERVER['HTTP_X_FORWARDED_PROTO']);
+        foreach ($forwardedProto as $proto) {
+            if (strcasecmp(trim((string)$proto), 'https') === 0) {
+                return true;
+            }
+        }
+    }
+    if (!empty($_SERVER['HTTP_X_FORWARDED_SSL'])) {
+        $forwardedSsl = strtolower(trim((string)$_SERVER['HTTP_X_FORWARDED_SSL']));
+        if (in_array($forwardedSsl, array('1', 'on', 'true', 'yes'), true)) {
+            return true;
+        }
+    }
+    return false;
+}
+
 //If this automatic URL doesn't work, set it yourself manually
-$redirectUri = isset($_SERVER['HTTPS']) ? 'https://' : 'http://' . $_SERVER['HTTP_HOST'] . $_SERVER['PHP_SELF'];
+$redirectUri = (programmit_mailer_request_is_https() ? 'https://' : 'http://') . $_SERVER['HTTP_HOST'] . $_SERVER['PHP_SELF'];
 //$redirectUri = 'http://localhost/phpmailer/get_oauth_token.php';
 
 //These details obtained are by setting up app in Google developer console.
