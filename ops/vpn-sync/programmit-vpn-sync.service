@@ -1,0 +1,11 @@
+[Unit]
+Description=Programmit VPN incremental sync cache
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=root
+Group=root
+ExecStart=/usr/bin/python3 /opt/programmit/vpn-sync/agent.py
+WorkingDirectory=/opt/programmit/vpn-sync

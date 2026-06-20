@@ -1,0 +1,57 @@
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+$TTL 3600
+@       IN      SOA     vda8200a.trouble-free.net.      hostmaster.programmit.com. (
+                                                2026021707
+                                                3600
+                                                3600
+                                                1209600
+                                                86400 )
+
+programmit.com.	3600	IN	NS	vda8200a.trouble-free.net.
+programmit.com.	3600	IN	NS	vda8200b.trouble-free.net.
+
+control	3600	IN	A	104.218.51.35
+ftp	3600	IN	A	104.218.51.35
+inter	3600	IN	A	104.218.51.35
+intersocio	3600	IN	A	104.218.51.35
+mail	3600	IN	A	104.218.51.35
+pagos	3600	IN	A	104.218.51.35
+panel	3600	IN	A	104.218.51.35
+pop	3600	IN	A	104.218.51.35
+programmit.com.	3600	IN	A	104.218.51.35
+smtp	3600	IN	A	104.218.51.35
+tienda	3600	IN	A	104.218.51.35
+www	3600	IN	A	104.218.51.35
+www.control	3600	IN	A	104.218.51.35
+www.inter	3600	IN	A	104.218.51.35
+www.intersocio	3600	IN	A	104.218.51.35
+www.pagos	3600	IN	A	104.218.51.35
+www.panel	3600	IN	A	104.218.51.35
+www.tienda	3600	IN	A	104.218.51.35
+
+programmit.com.	3600	IN	MX	10 mail.programmit.com.
+
+
+
+programmit.com.	3600	IN	TXT	"v=spf1 a mx ip4:104.218.51.34 include:relay.mailbaby.net ~all"
+
+
+
+
+
+
+
+

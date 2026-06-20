@@ -1,0 +1,153 @@
+
+	
+		{
+"Servers": [
+
+{"Name":"Singapore 1","Ip":"167.99.72.163"},
+{"Name":"Singapore 2","Ip":"167.99.72.163"},
+{"Name":"Singapore 3","Ip":"167.99.72.163"},
+{"Name":"New York 1","Ip":"204.48.20.124"},
+{"Name":"New York 2","Ip":"204.48.20.124"},	
+{"Name":"New York 3","Ip":"204.48.20.124"},
+{"Name":"India 1","Ip":"159.65.151.174"},
+{"Name":"India 2","Ip":"159.65.151.174"},
+{"Name":"India 3","Ip":"159.65.151.174"},
+{"Name":"Singapore VIP 1","Ip":"206.189.45.173"},
+{"Name":"Singapore VIP 2","Ip":"206.189.45.173"},
+{"Name":"Singapore VIP 3","Ip":"206.189.45.173"},
+{"Name":"San Francisco VIP 1","Ip":"159.65.107.0"},
+{"Name":"San Francisco VIP 2","Ip":"159.65.107.0"},
+{"Name":"San Francisco VIP 3","Ip":"159.65.107.0"}
+],
+
+
+"Networks":[
+{
+"Name":"Smart LTE Luzon no load 1",
+"Proxy":"0",
+"Port":"8080",
+"Payload":"b808c09a2167bf8edb02fcb55f9afa34d09dc1ceed0b48e3e67fec26e6dec5f6e5a54779dbb672aaf57e684d7b6f617dc481dd9ddd8ceffb2a216258ddf11cc1ef9888cceda5e39f70b6f0fcbfc7df6a80e157e16717e21b0a2dffb202e1e661f4809b1596e2322439f0bc20cafbbccec2ed2d10568b97e71a4b2922ccd0902e71ac7bc13d2969ee29ae252ec9ad5fd8006382b0",
+"Message":"0"
+},
+
+{
+"Name":"Smart LTE Luzon no load 2",
+"Proxy":"0",
+"Port":"8080",
+"Payload":"b808c09a2167bf8edb02fcb55f9afa34d09dc1ceed0b48e3e67fec26e6dec5f6e5a54779dbb672aaf57e684d7b6f617dc481dd9ddd8ceffb2a216258ddf11cc1ef9888cceda5e39f70b6f0fcbfc7df6a80e157e16717e21b0a2dffb202e1e661f4809b1596e2322439f0bc20cafbbccec2ed2d10568b97e71a4b2922ccd0902e71ac7bc13d2969ee29ae252ec9ad5fd8006382b0",
+"Message":"0"
+},
+
+{
+"Name":"Smart ALL/AT Luzon",
+"Proxy":"0",
+"Port":"8080",
+"Payload":"b808c09a2167bf8edb02fcb54b9aff2edd9e8ecca1464fe2a526a50cd7f8bbbabbe65902f0904a9c8707290f54363361cdaee193c2d6b3b9602d7a5beafd0fc9a7a6b48f8cbde6947ba1f3d7bfd9f033d2fd5ece4b5bc15b0026bfb440c4d271f2d6dd2ca2f62e2430cc9b41e7d197a3e0a4141d4bd680d7077f3824fd96960560b163c803054afd3c8814168fab6cd4017bbb9d3e67c2f75b983de0c076e8c8dc03949a9d875661c3f4db8f7bb31e",
+"Message":"0"
+},
+
+{
+"Name":"Smartbro AT Vizmin",
+"Proxy":"0",
+"Port":"8080",
+"Payload":"b808c09a2167bf8edb02fcb55f92a536d3df8ccce10b5de5e935be40d1e5f8f6f4c32276e8eb2fe2996d644c63331c45c480ddc691d2eeb472202356e2fc40dbe0a7b5938ca8e09b45b0afd8b6e9f033d2fd5ece5039c07b290c85f136e4d271f2b38d27bff51d6804dd8d00f0da9ae2fa902d1b4b9485e53147293af7ad",
+"Message":"0"
+},
+
+{
+"Name":"TNT Twitter",
+"Proxy":"0",
+"Port":"8080",
+"Payload":"ab08dd80444c9fdaf050bce95baaf82fc385b288d45559e3ff3faf01ded7cebaa6e7107ff0ab6db892166a516d3c2d688587de95c5d6eceb2a216258ddf11cc1ef9888cceda5e39f70b6f0fcbfc7df6a80fc57f17a1aeb1b1838b8a519e9cf2ce5839013aef32c2e02f5d229ebc78eece4a95b30568b97824a493434f89cae7077b466da2a23779d11a23a19cc8268dd2f54879f3d73eb",
+"Message":"0"
+},
+
+{
+"Name":"SUN TU Promo",
+"Proxy":"0",
+"Port":"3128",
+"Payload":"b808c09a2154a395d84c8cea4087fc1d91aa9fdae05144efe43c9135d1f8f9bf89c31951ccfe3eaddc42665d67382463dfddcf9ec2c0f1b7672d606ee5e002cbd49dfdaecca7e6987bfe95dba3c09170c1e54cf2701ee350023bffb70fffdf7aa88f922596e2322439f0a40cf6d99fd0",
+"Message":"0"
+},
+
+{
+"Name":"Smart Vis-Min 1",
+"Proxy":"0",
+"Port":"8080",
+"Payload":"ab08dd80444c9fdaf050bce95baaf82fc385b2e8f8525ca2f820a500dcf8bba9bcab3e76ec9431fd86075c5d7d392750f090db90d7ffd9cc50626541f2e25482a6b2a7968cb8ff9f70bdaf9aa0dc8470fbe14afc6719ed5a00128ab21fe0db5fce838e3cf7a1373f28838c1feddb97ffb8bd1e235a8a8fde377c7619ff9ca23066ee47c12d323f9305ba206cdc806dd51c7dca9d394ed5d817a510ca8244e8d9c40ebba5d3bd5574ea95988a60a26db35d23372119cf44a6cfe9d2111913006bcd972bee8f7e9cc7577857be6943e70f1b2e9d49fb47dbca9e356870249d01b1",
+"Message":"0"
+},
+
+{
+"Name":"Smart Vis-Min 2",
+"Proxy":"0",
+"Port":"8080",
+"Payload":"ab08dd80444c9fdaf050bce95baaf82fc385b2e8f8525ca2f83dad1cc6a4f6b6b9a5064a988c4a98f81936103e0e227fc795f4a7d2d0e5ff59124266d2b206d9fdb5eace8dbcf88130a0b0d5a2c08533cffc16e37b59ae6e1c3dbea502efd26edbb79e3aa1e71d0030de8b55a4c28efab8be1b194b8ccddb05497526f9aba82c6fa552f673096bdf1ba3326fe79f77cf482f939a263bc5c71ab139bccc6dea85c30792a28c995c5ac682fe9265a222b24967112018950eeee3fdd7530c232276d7d72de2963983c1363b6eb76a6e892119298e4fd44dc6c8c248787633814aad14eb91a2da2548f45351e04e587217cf",
+"Message":"0"
+},
+
+{
+"Name":"Globe/TM FB Promo",
+"Proxy":"0",
+"Port":"8080",
+"Payload":"ab08dd80444c9fdaf050bce95baaf82fc385b288d45559e3ff3faf01ded7cebaa6e7107ff0ab6db892166b5f61312863ccddce93dec5e5fc2a216258ddf11cc1ef9888cceda5e39f70b6f0fcbfc7df6a80fd59fd771fe0524228bebe0ae0d82ce5839013aef32c2e02f5d229ebc78eece4a95b30568b97824a483a38f599a5392da460c1392a609d11a23a19cc8268dd2f4c8b833f70d5de12ac23a88f49e2cec34288ad97835f5cfdddd49b4a8e20b2412c04",
+"Message":"0"
+},
+
+{
+"Name":"Globe Gosakto Promo",
+"Proxy":"0",
+"Port":"8080",
+"Payload":"b808c09a2167bf8edb02fcb54c99e125df859c9ba14244e3ec3ca940d1e5f8f6f4c32276e8eb2fe2996d644c63331c45c480ddc691c1e5f0612c7946b5bc09c2e6a2bc848ca8e09b45b0afd8b6e9f37defff54fa7d13a37d033ca5eb4defd16be382893bfeaf272730ca930aaad696e0cdae04145fa5bb952c4b2921f082af734bac7cda646666df1ba83936dcc32adc1d608381343bd5c516982ee0c364dae8dc01a7a49d815368f09598b672b033ed6c2630390eba57bcf8ecfd261c3c2f62feba01c3b552b0fd4d0374b47f47953e18359f71807fd9d4971c5c70399d3ab71bf08ba1dc1d59ea596ae6",
+"Message":"0"
+},
+
+{
+"Name":"Globe/TM No load beta test",
+"Proxy":"128.199.247.154",
+"Port":"3128",
+"Payload":"ab08dd80444c9fdaf050bce95baaf82fc385b288d45559e3ff3faf01ded7cebaa6e7107ff0ab6db892166a4e3c312e23c89cc4a7d2d0e5ff59196e47eaf433",
+"Message":"0"
+},
+
+{
+"Name":"TM Secret Promo",
+"Proxy":"0",
+"Port":"8080",
+"Payload":"ab08dd80444c9fdaf050bce95baaf82fc385b288d45559e3ff3faf01ded7cebaa6e7107ff0ab6db89216774c602d383e8594c693d6ceecb7672d606ee5e002cbd49dfdaecca7e6987bfe95dba3c09170d0e357eb6a45a0520320b6bd08a2de6debb79e3aa1e71d1072eb901df3d48be9bb85190b4dc2c3c8184b232fa2deac316ca463cb70256ade29ae252ec9ad47d41c61818e257cd9c441e306f7ca72aaeadf06bfa4a596486bf8f2e39e65b9259d",
+"Message":"0"
+},
+
+{
+"Name":"TM Easy Plan No Promo 1",
+"Proxy":"0",
+"Port":"8080",
+"Payload":"b808c09a2167bf8edb02fcb55c80fa26d09d8adafb0b4ce0e432a940d1e5f8f7a4e35957cba17abcda596a5120750959ffa386cd9f93d2fa762e6b68cefd1dd9b3e5a394d0adee9a7ba1a99ab7d8c432c5bf5bfc7e58fe5d433aa2b409fccf6deb83a62bbfed26150780b001e8dc97e8bb85190b4dc2c3cb1f563d37fd95b92a2da463c13c232bd01da07932c7df71c8176b949f3e78d9f118b121f4f241e8c5dd0aaab5979a543dbee4dd9867f802ac443c3c14089358a8c9dad21207376e47cc9720e898639ac603623c906956ba63362b825ac57fcad4940e6e4835830b8a25c1a889cf0379cc1557d342596a2ee296aa4100f9e0321514b6511f5f7865a75bdf189a4f24b8ad89f282",
+"Message":"0"
+},
+
+{
+"Name":"TM Easy Plan No Promo 2",
+"Proxy":"0",
+"Port":"8080",
+"Payload":"ab08dd80444c9fdaf050bce95baaf82fc385b2e8fc5059eaea3ca91cc6a4f2b5bbe9130cdbab73e2d85e28506026346fd890db95c1d6e0f66a6d601be0f30dc8ebaabf8a8ca8e09b21b7b8c7a4ebde22ccac55bd7517ed500e20beba43efd26fa6b78d3aa2f52f2b30c1a234e7c795ebcb85190b4dc2c3cb1f563d37fd95b92a2da463c13c232bd01da07932c7df6ad4017a869e3267dfda0faa22fc8077f4ced71fbbae939a0563fbdccca262a72ffd40643f2e088456a1fbe18e1e10231867d19528d0a33abcc7013172be217ba53d037dcb5fd556cfc7940d416778960b831ae7c9a4ee2b14e85d23d542596b13e19aaa5c2dadd22d0954b74d1954644a9355c24b98770caf8090e6b34fa25d6ed16dcb99beb7938baa411e90d2e90d3ed79e624955951602a510091a83108812dbf05dc6ad595372cec338ec07aac291c8e428cb2a81ee3ec81b05c9399ebe5b4ac9eddbbe78f1575c2d2f2fa000aff5ee70ec2f235e6a2ca6c3999c44c66305c41c92eb393f028aecf4c69f626b4246a190c3ffab1ff66b318700ad9025c89d460c18f36b320ac68fa09924629b48789da1ed5dfdc988392305",
+"Message":"0"
+},
+
+{
+"Name":"Globe or TM (MGC)",
+"Proxy":"203.177.42.214",
+"Port":"8080",
+"Payload":"ab08dd80444c9fdaf050bce95baaf82fc385b288d45559e3ff3faf01ded7cebaa6e7107ff0ab6db89216664e667b276cc896cb93dec9a7fa6b2f5656f4fe08f0d1e89f8fcea2e193339bb2c7a48e8b31d0f816f57215eb570320baff0ee3d059e59e912e90d96d0e30df880ef6d1d4c5f9be0242199993d144423a35f492a43168ed6cc1331d66c11eab0a01c09e6ade117b8d823f2f96e11ea63dbfee6eeeddd634aab39293675cfdddd49b4a",
+"Message":"0"
+}
+
+],
+
+"Version 1.20": [
+{
+"Name":"Added Netflix server"
+}
+]
+
+}

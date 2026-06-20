@@ -1,0 +1,11 @@
+[Unit]
+Description=Run Programmit VPN sync cache every minute
+
+[Timer]
+OnBootSec=30s
+OnUnitActiveSec=60s
+Unit=programmit-vpn-sync.service
+Persistent=true
+
+[Install]
+WantedBy=timers.target

@@ -1,0 +1,10 @@
+<?php
+$dns_list_array=array(
+			1=>array(".phstealers.com","9b275d1d50d49e648ab0eff4125b7af5","20f989db3c168115b85e51e03b07b9c7eb85b","harulenz@gmail.com"),
+			2=>array(".test1.com","0c6fce18d5ae8bc6d4e8d08aa4e55d25","20f989db3c168115b85e51e03b07b9c7eb85b","harulenz@gmail.com"),
+			3=>array(".test2.net","a6c36fb9a8af16bcfe9fab254ca5c306","20f989db3c168115b85e51e03b07b9c7eb85b","harulenz@gmail.com"),
+			4=>array(".test3.net","bd9be4216379eaf6127f4b27f346f991","20f989db3c168115b85e51e03b07b9c7eb85b","harulenz@gmail.com"),
+			5=>array(".test4.com","31e0c5d539535dc4cd63e2f774c07992","20f989db3c168115b85e51e03b07b9c7eb85b","harulenz@gmail.com"),
+			6=>array(".test5.net","5e81ce25b1fe3373bb64a5f4e3d8c8b5","20f989db3c168115b85e51e03b07b9c7eb85b","harulenz@gmail.com"),
+	);			
+?>

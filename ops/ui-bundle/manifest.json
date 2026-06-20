@@ -1,0 +1,15 @@
+{
+  "bundle_name": "panel_ui_stable_20260312_10am_mix_clean",
+  "created_date": "2026-03-12",
+  "notes": "Restore these 3 files together. Do not mix menu backups from different timestamps. app.js already includes the safe legacy guards added after the restore.",
+  "sources": {
+    "templates/apps/sidenavi.tpl": "credit_history_menu_label_20260312_140633",
+    "templates/apps/topnav.tpl": "menu_restore_exact_20260312_152209",
+    "firenet/assets/js/app.js": "menu_restore_exact_20260312_152209 + legacy_guard_cleanup"
+  },
+  "hashes_md5": {
+    "templates/apps/sidenavi.tpl": "8c183738f543a0148342148fbde34103",
+    "templates/apps/topnav.tpl": "8d1062c23000d37f0984e5268ea280d5",
+    "firenet/assets/js/app.js": "30acf04b1c129f53b42652de45830621"
+  }
+}

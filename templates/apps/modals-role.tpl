@@ -1,0 +1,903 @@
+<!-- Start Logout Modal -->
+  <div class="modal fade" id="logoutModal" tabindex="-1" role="dialog" aria-labelledby="exampleModalLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title2" id="exampleModalLabel">Ready to Leave {$full_name_2}?</h5>
+          <button class="close" type="button" data-dismiss="modal" aria-label="Close">
+            <span aria-hidden="true">×</span>
+          </button>
+        </div>
+        <div class="modal-body">Select "Logout" below if you are ready to end your current session.</div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" type="button" data-dismiss="modal">Cancelar</button>
+          <a class="btn btn-primary" href="logout">Logout</a>
+        </div>
+      </div>
+    </div>
+  </div>
+<!-- End Logout Modal -->  
+
+                <!-- Start User Add Bootstrap modal -->
+					<div class="modal fade" id="modal_form" tabindex="-1" role="dialog" aria-labelledby="modal_form" aria-hidden="true">
+						<div class="modal-dialog" role="document">
+							<div class="modal-content">
+								<div class="modal-header">
+									<h5 class="modal-title"></h5>
+									<button class="close" type="button" data-dismiss="modal" aria-label="Close">
+                                        <span aria-hidden="true">×</span>
+                                    </button>
+								</div>
+								<div class="modal-body">
+									<form id="register" autocomplete="off">
+										<input type="hidden" id="submitted" name="submitted" value="Register Account">
+										<input type="hidden" id="register_mode" name="register_mode" value="add">
+										<input type="hidden" id="register_full_name" name="full_name" value="">
+										<input type="hidden" id="register_user_email" name="user_email" value="">
+										<input type="hidden" id="register_user_pass2" name="user_pass2" value="">
+										<input type="hidden" id="client_default_password_enabled" value="{$client_default_password_enabled|default:0}">
+										<div class="summary-errors alert alert-danger alert-dismissible" style="display:none;">
+											<ul class="mb-0"></ul>
+										</div>
+									<div class="row">
+									    <div class="col-md-12 form-group">
+										    <label for="v2ray_id"><i class="glyphicon glyphicon-user"></i> V2Ray UUID:</label>	
+											<div class="input-group">
+												<input id="v2ray_id" type="text" class="form-control" name="v2ray_id" value="" autocomplete="off" readonly="readonly">
+											    <div class="input-group-append">
+                                                    <span class="input-group-append">
+                                                        <span class="input-group-text" onclick="v2rayrefresh();" id="v2rayrefresh"><i class="fas fa-redo"></i></span>
+                                                    </span>
+                                                </div>
+											</div>
+											<small class="form-text text-muted">Haga clic en el botón de actualización para cambiar el UUID de V2Ray.</small>
+										</div>
+										<div id="usname" class="col-md-12 form-group">
+										    <label for="user_name"><i class="glyphicon glyphicon-user"></i> Nombre de usuario:</label>	
+											<div class="input-group">
+												<input id="user_name" type="text" class="form-control" name="user_name" value="" data-parsley-maxlength="20" data-parsley-minlength="3" autocomplete="off" placeholder="Enter Username" required>
+											    <div class="input-group-append">
+                                                    <span class="input-group-text"><i class="fas fa-user"></i></span>
+                                                </div>
+											</div>
+										</div>
+										<div class="col-md-12" id="register_password_group">
+											<div class="form-group">
+												<label class="control-label" for="user_pass"><i class="glyphicon-lock"></i> Contraseña:</label>
+												<div class="input-group">
+													<input id="user_pass" type="password" class="form-control" name="user_pass" value=""
+													autocomplete="off" ondrop="return false;" onpaste="return false;" data-parsley-equalto="#register_user_pass2" data-parsley-maxlength="20" data-parsley-minlength="6" placeholder="Enter Password" required>
+													<div class="input-group-append">
+                                                        <span class="input-group-text" href="javascript:;" onclick="toggle_password('user_pass');" id="showhide2"><i class="fas fa-eye"></i></span>
+                                                    </div> 
+												</div>
+												<div class="progress password-meter mt-1" id="signuppwdMeter">
+													<div class="progress-bar"></div>
+												</div>
+											</div>
+										</div>
+										<div id="role_mgt" class="col-md-12 form-group">
+										    <label for="role_acct"><i class="glyphicon glyphicon-stats"></i> Role Management:</label>
+											<div class="input-group">
+												<select class="custom-select" id="role_acct" name="role_acct" title="Role Management">
+													<option value="1" selected="selected">Normal Client</option>
+													{if $user_id_2 == 1 || $user_level_2 == 'superadmin' || $user_level_2 == 'reseller' || $user_level_2 == 'subadmin' || $user_level_2 == 'administrator'}
+													<option value="2">Sub-Reseller</option>
+													{/if}
+													{if $user_id_2 == 1 || $user_level_2 == 'superadmin' || $user_level_2 == 'subadmin' || $user_level_2 == 'administrator'}
+													<option value="3">Reseller</option>
+													{/if} 
+													{if $user_id_2 == 1 || $user_level_2 == 'superadmin'  || $user_level_2 == 'administrator'}
+													<option value="5">Sub-Administrator</option>
+													{/if}
+													{if $user_id_2 == 1 || $user_level_2 == 'superadmin'}
+													<option value="4">Administrator</option>
+													{/if}
+													{if $user_id_2 == 1}
+													<option value="99">Super-Administrator</option>
+													{/if}
+												</select>
+												<div class="input-group-append">
+                                                    <span class="input-group-text"><i class="fas fa-user-shield"></i></span>
+                                                </div>
+											</div>
+										</div>
+										<div id="role_mgt2" class="col-md-12 form-group d-none">
+											<label for="role"><i class="glyphicon glyphicon-stats"></i> Role Management:</label>
+											<div class="input-group">
+												<select class="custom-select" id="role" name="role" title="Role Management">
+													<option value="1" selected="selected">Normal Client</option>
+													{if $user_id_2 == 1 || $user_level_2 == 'superadmin' || $user_level_2 == 'reseller' || $user_level_2 == 'subadmin' || $user_level_2 == 'administrator'}
+													<option value="2">Sub-Reseller</option>
+													{/if}
+													{if $user_id_2 == 1 || $user_level_2 == 'superadmin' || $user_level_2 == 'subadmin' || $user_level_2 == 'administrator'}
+													<option value="3">Reseller</option>
+													{/if} 
+													{if $user_id_2 == 1 || $user_level_2 == 'superadmin'  || $user_level_2 == 'administrator'}
+													<option value="5">Sub-Administrator</option>
+													{/if}
+													{if $user_id_2 == 1 || $user_level_2 == 'superadmin'}
+													<option value="4">Administrator</option>
+													{/if}
+													{if $user_id_2 == 1}
+													<option value="99">Super-Administrator</option>
+													{/if}
+												</select>
+												<div class="input-group-append">
+                                                    <span class="input-group-text"><i class="fas fa-user-shield"></i></span>
+                                                </div>
+											</div>
+										</div>
+										<div id="client_mode" class="col-md-12 form-group">
+										    <label for="client_type"><i class="icon wb-users"></i> Tipo de cliente:</label>
+											<div class="input-group">
+												<select class="custom-select" id="client_type" name="client_type" title="Tipo de cliente">
+													<option value="{$premium_encrypt}">Cliente Premium</option>
+													<!--option value="{$vip_encrypt}">VIP Client</option-->
+													{if $user_id_2 == 1 || $user_level_2 == 'superadmin'}
+													<option value="{$private_encrypt}">Cliente privado</option>
+													{/if}
+												</select>
+												<div class="input-group-append">
+                                                    <span class="input-group-text"><i class="fas fa-user-tag"></i></span>
+                                                </div>
+											</div>
+										</div>
+									</div>
+									<div class="row">
+										<!--div class="col-md-12">
+											<div class="form-group">
+												<label class="control-label" for="user_pass2"><i class="glyphicon-lock"></i> Confirm Password:</label>
+												<div class="input-group">
+													<input id="user_pass2" type="password" class="form-control" name="user_pass2" value=""
+													autocomplete="off" ondrop="return false;" onpaste="return false;" required>
+													<a class="input-group-addon" href="javascript:;" onclick="new_password('user_pass2');" id="newshowhide"><i class="glyphicon glyphicon-eye-open"></i></a>
+												</div>
+												<div class="progress password-meter" id="chkpwdMeter">
+													<div class="progress-bar"></div>
+												</div>
+											</div>
+										</div-->
+									</div>
+									    <div class="row">
+    										{if $user_id_2 == 1 || $user_level_2 == 'superadmin' || $user_level_2 == 'administrator'}
+        										<div id="upline" class="col-md-12 form-group d-none">
+        										    <label class="control-label" for="resellers"><i class="glyphicon glyphicon-stats"></i> Upline User:</label>
+        											<div class="input-group">
+        												<select class="custom-select" id="resellers" name="resellers" title="Reseller">
+        												</select>
+        												<div class="input-group-append">
+                                                            <span class="input-group-text"><i class="fas fa-user-check"></i></span>
+                                                        </div>
+        											</div>
+        										</div>
+    										{/if}
+										    <input type="hidden" id="secret" name="secret">	
+									    </div>
+										<div class="control-group form-group">
+											<div class="modal-footer">
+            									<button type="submit" id="submitRegister" name="submitRegister" class="btn btn-success btn-xs waves-effect waves-light">
+            									    <span id="loader"></span>
+            									    <span id="butext"></span>
+            									</button>
+            									<button type="button" class="btn btn-danger btn-xs waves-effect waves-light" data-dismiss="modal">Cancelar</button>
+            								</div>
+										</div>
+									</form>
+								</div>
+							</div>
+						</div>
+					</div>	
+				<!-- End User Add Bootstrap modal -->
+				
+				<!-- Start User Details Bootstrap modal -->
+					<div class="modal fade" id="view_modal" tabindex="-1" role="dialog" aria-labelledby="view_modal" aria-hidden="true">
+						<div class="modal-dialog">
+							<div class="modal-content">
+								<div class="modal-header">
+									<h5 class="modal-title"></h5>
+									<button class="close" type="button" data-dismiss="modal" aria-label="Close">
+                                        <span aria-hidden="true">×</span>
+                                    </button>
+								</div>
+								<div class="modal-body" id="content">
+									<div class="row">
+										<div class="col-md-12">
+											<div class="form-group">
+												<label for="username" class="font-weight-bold">Usuario:</label>
+												<div class="input-group">
+    												<div class="form-control" id="username"></div>
+    												<div class="input-group-append">
+                                                        <span class="input-group-text"><i class="fas fa-user-tag"></i></span>
+                                                    </div>
+                                                </div>
+											</div>
+										</div>
+										<div class="col-md-12">
+											<div class="form-group">
+												<label for="password" class="font-weight-bold">Password:</label>
+												<div class="input-group">
+    												<div class="form-control" id="password"></div>
+    												<div class="input-group-append">
+                                                        <span class="input-group-text"><i class="fas fa-user-lock"></i></span>
+                                                    </div>
+                                                </div>
+											</div>
+										</div>
+										<div class="col-md-12">
+											<div class="form-group">
+												<label for="v2rayid" class="font-weight-bold">V2Ray UUID:</label>
+												<div class="input-group">
+    												<div class="form-control" id="v2rayid"></div>
+    												<div class="input-group-append">
+                                                        <span class="input-group-text"><i class="fas fa-barcode"></i></span>
+                                                    </div>
+                                                </div>
+											</div>
+										</div>
+										<div class="col-md-12">
+											<div class="form-group">
+												<label for="regdate" class="font-weight-bold">Date Created:</label>
+												<div class="input-group">
+    												<div class="form-control" id="regdate"></div>
+    												<div class="input-group-append">
+                                                        <span class="input-group-text"><i class="fas fa-user-clock"></i></span>
+                                                    </div>
+                                                </div>
+											</div>
+										</div>
+										<div class="col-md-12">
+											<div class="form-group">
+												<label for="roleduration" class="font-weight-bold">Role Expiry:</label>
+												<div class="input-group">
+    												<div class="form-control" id="roleduration"></div>
+    												<div class="input-group-append">
+                                                        <span class="input-group-text"><i class="fas fa-user-clock"></i></span>
+                                                    </div>
+                                                </div>
+											</div>
+										</div>
+										<div class="col-md-12">
+											<div class="form-group">
+												<label for="premiumduration" class="font-weight-bold">Duration Expiry:</label>
+												<div class="input-group">
+    												<div class="form-control" id="premiumduration"></div>
+    												<div class="input-group-append">
+                                                        <span class="input-group-text"><i class="fas fa-user-clock"></i></span>
+                                                    </div>
+                                                </div>
+											</div>
+										</div>
+										<!--div class="col-md-12">
+											<div class="form-group">
+												<label for="premiumduration" class="font-weight-bold">VIP Expiry:</label>
+												<div class="input-group">
+    												<div class="form-control" id="vipduration"></div>
+    												<div class="input-group-append">
+                                                        <span class="input-group-text"><i class="fas fa-user-clock"></i></span>
+                                                    </div>
+                                                </div>
+											</div>
+										</div>
+										<div class="col-md-12">
+											<div class="form-group">
+												<label for="premiumduration" class="font-weight-bold">Private Expiry:</label>
+												<div class="input-group">
+    												<div class="form-control" id="privateduration"></div>
+    												<div class="input-group-append">
+                                                        <span class="input-group-text"><i class="fas fa-user-clock"></i></span>
+                                                    </div>
+                                                </div>
+											</div>
+										</div-->
+									</div>
+								</div>
+								<div class="control-group form-group">
+									<div class="modal-footer">
+            							<button type="button" class="btn btn-primary btn-xs waves-effect waves-light" data-dismiss="modal" onclick="downbold()">Download</button>
+            						</div>
+								</div>
+							</div>
+						</div>
+					</div>
+				<!-- End User Details Bootstrap modal -->
+					
+				<!-- Start Credits Bootstrap modal -->
+					<div class="modal fade" id="credits_form" tabindex="-1" role="dialog" aria-labelledby="credits_form" aria-hidden="true">
+						<div class="modal-dialog">
+							<div class="modal-content">
+								<div class="modal-header">
+									<h5 class="modal-title"></h5>
+									<button class="close" type="button" data-dismiss="modal" aria-label="Close">
+                                        <span aria-hidden="true">×</span>
+                                    </button>
+								</div>
+								<div class="modal-body">
+									<form id="formCredits" name="formCredits" method="post">
+										
+										<div class="row">
+										    
+										    <div class="col-md-6">
+    											<div class="form-group">
+    												<label for="get_user" class="font-weight-bold">Usuario:</label>
+    												<div class="input-group">
+        												<div class="form-control" id="get_user"></div>
+        												<div class="input-group-append">
+                                                            <span class="input-group-text"><i class="fas fa-user-tag"></i></span>
+                                                        </div>
+                                                    </div>
+    											</div>
+    										</div>
+    										
+    										<div class="col-md-6">
+    											<div class="form-group">
+    												<label for="get_credits" class="font-weight-bold">Balance:</label>
+    												<div class="input-group">
+        												<div class="form-control" id="get_credits"></div>
+        												<div class="input-group-append">
+                                                            <span class="input-group-text"><i class="fas fa-coins"></i></span>
+                                                        </div>
+                                                    </div>
+    											</div>
+    										</div>
+											
+										</div>
+										
+										<div class="row">
+										    	
+										    <div class="col-md-6">
+    											<div class="form-group">
+    												<label for="add_credits" class="font-weight-bold">Credits:</label>
+    												<div class="input-group">
+        												<input class="form-control" type="text" id="add_credits" name="add_credits" {if $sub_admin_2 == 1}min="1" max="{$credits_2}"{/if}>
+        												<div class="input-group-append">
+                                                            <span class="input-group-text"><i class="fas fa-cart-plus"></i></span>
+                                                        </div>
+                                                    </div>
+    											</div>
+    										</div>	
+												
+											<input type="hidden" class="form-control" id="credits_secret" name="credits_secret">
+											<input type="hidden" class="form-control" id="credits_code" name="credits_code">
+											<input type="hidden" class="form-control" id="submitted" name="submitted" value="Add Credits">
+												
+											{if $user_id_2=='1' || $user_level_2 == 'superadmin' || $user_level_2 == 'subadmin' || $user_level_2 == 'reseller' || $user_level_2 == 'administrator'}
+												<div class="form-group col-md-6">
+												    <label for="category">Action:</label>
+												    <div class="input-group">
+    													<select class="custom-select" id="category" name="category">
+    														<option value="{$add_encrypt}" selected="selected">Add Credits</option>
+    														{if $user_id_2=='1' || $user_level_2 == 'superadmin'}
+    														<option value="{$substract_encrypt}">Substract Credits</option>
+    														{/if}
+    													</select>
+    													<div class="input-group-append">
+                                                            <span class="input-group-text"><i class="fas fa-coins"></i></span>
+                                                        </div>
+    												</div>
+												</div>
+												{else}
+												<input type="hidden" class="form-control" id="category" name="category" value="{$add_encrypt}">
+												{/if}
+										</div>
+										<div class="control-group form-group">
+													<div class="modal-footer">
+														<button type="submit" id="submitReseller" name="submitReseller" class="btn btn-primary">Guardar</button>
+														<button type="button" class="btn btn-danger" data-dismiss="modal">Cancelar</button>
+														<span align="left" id="loading"></span>
+													</div>
+												</div>
+									</form>
+								</div>
+							</div>
+						</div>
+					</div>
+				<!-- End Credits Bootstrap modal -->
+					
+				<!-- Start Duration Bootstrap modal -->
+					<div class="modal fade" id="voucher_form" tabindex="-1" role="dialog" aria-labelledby="voucher_form" aria-hidden="true">
+						<div class="modal-dialog">
+							<div class="modal-content">
+								<div class="modal-header">
+									<h5 class="modal-title"></h5>
+									<button class="close" type="button" data-dismiss="modal" aria-label="Close">
+                                        <span aria-hidden="true">×</span>
+                                    </button>
+								</div>
+								<div class="modal-body">
+									<form id="formVouchers" name="formVouchers" method="post" class="form-horizontal padding-20">
+										<input type="hidden" id="submitted" name="submitted" value="Generate Voucher">
+										
+										
+										<div class="form-group">
+											<label class="control-label" for="qty">Duration of extension:</label>
+											<div class="input-group">   
+    											<select class="custom-select credits" id="qty" name="qty">
+    												{if $credits_2 <= 0 && $user_id_2 != '1' && $user_level_2 != 'superadmin'}
+    												<option>Insufficient Balance</option>
+    												{/if}
+    												{if $credits_2 >= 1 || $user_id_2 == '1' || $user_level_2 == 'superadmin'}
+    												<option value="1">30 Days</option>
+    												{/if}
+    												{if $credits_2 >= 2 || $user_id_2 == '1' || $user_level_2 == 'superadmin'}
+    												<option value="2">60 Days</option>
+    												{/if}
+    												{if $credits_2 >= 3 && $user_id_2 == '1' || $user_level_2 == 'superadmin'}
+    												<option value="3">90 Days</option>
+    												{/if}
+    												{if $credits_2 >= 4 && $user_id_2 == '1' || $user_level_2 == 'superadmin'}
+    												<option value="4">120 Days</option>
+    												{/if}
+    												{if $credits_2 >= 5 && $user_id_2 == '1' || $user_level_2 == 'superadmin'}
+    												<option value="5">150 Days</option>
+    												{/if}
+    											</select>
+    											<div class="input-group-append">
+                                                    <span class="input-group-text"><i class="fas fa-user-clock"></i></span>
+                                                </div>
+    										</div>
+										</div>
+										
+										<!--div class="form-group">
+											<label class="control-label" for="qty">Duration of extension:</label>
+											<div class="input-group">   
+    											<select class="custom-select credits" id="qty" name="qty">
+    												{if $credits_2 <= 0 && $user_id_2 != '1' && $user_level_2 != 'superadmin'}
+    												<option>Insufficient Balance</option>
+    												{/if}
+    												{if $credits_2 >= 1 || $user_id_2 == '1' || $user_level_2 == 'superadmin'}
+    												<option value="1">30 Days</option>
+    												{/if}
+    												{if $credits_2 >= 2 || $user_id_2 == '1' || $user_level_2 == 'superadmin'}
+    												<option value="2">60 Days</option>
+    												{/if}
+    												{if $credits_2 >= 3 || $user_id_2 == '1' || $user_level_2 == 'superadmin'}
+    												<option value="3">90 Days</option>
+    												{/if}
+    												{if $credits_2 >= 4 || $user_id_2 == '1' || $user_level_2 == 'superadmin'}
+    												<option value="4">120 Days</option>
+    												{/if}
+    												{if $credits_2 >= 5 || $user_id_2 == '1' || $user_level_2 == 'superadmin'}
+    												<option value="5">150 Days</option>
+    												{/if}
+    												{if $credits_2 >= 6 || $user_id_2 == '1' || $user_level_2 == 'superadmin'}
+    												<option value="6">180 Days</option>
+    												{/if}
+    												{if $credits_2 >= 7 || $user_id_2 == '1' || $user_level_2 == 'superadmin'}
+    												<option value="7">210 Days</option>
+    												{/if}
+    												{if $credits_2 >= 8 || $user_id_2 == '1' || $user_level_2 == 'superadmin'}
+    												<option value="8">240 Days</option>
+    												{/if}
+    												{if $credits_2 >= 9 || $user_id_2 == '1' || $user_level_2 == 'superadmin'}
+    												<option value="9">270 Days</option>
+    												{/if}
+    												{if $credits_2 >= 10 || $user_id_2 == '1' || $user_level_2 == 'superadmin'}
+    												<option value="10">300 Days</option>
+    												{/if}
+    											</select>
+    											<div class="input-group-append">
+                                                    <span class="input-group-text"><i class="fas fa-user-clock"></i></span>
+                                                </div>
+    										</div>
+										</div-->
+										
+										<div class="form-group">
+											<label for="category">Category:</label>
+											<div class="input-group">
+    											<select class="custom-select" id="category" name="category">
+    												<option value="{$premium_encrypt}" selected="selected">Duration Extension</option>
+    												<!--option value="{$vip_encrypt}">VIP Client</option>
+    												<option value="{$private_encrypt}">Cliente Private</option-->
+    												<option value="{$role_encrypt}">Role Extension</option>
+    											</select>
+    											<div class="input-group-append">
+                                                    <span class="input-group-text"><i class="fas fa-user-tag"></i></span>
+                                                </div>
+                                            </div>
+										</div>
+										
+										<div class="control-group form-group">
+											<div class="modal-footer">
+												<button type="submit" id="submit" name="submit" class="btn btn-primary">Guardar</button>
+												<button type="button" class="btn btn-danger" data-dismiss="modal">Cancelar</button>
+												<input type="hidden" class="form-control" id="voucher_code" name="voucher_code">
+												<input type="hidden" class="form-control" id="voucher_secret" name="voucher_secret">
+												<div id="vouchers_loader"></div>
+											</div>
+										</div>
+									</form>
+								</div>
+							</div>
+						</div>
+					</div>
+					<!-- End Duration Bootstrap modal -->
+					
+				<!-- Start Trial Bootstrap modal -->
+					<div class="modal fade" id="instant_form" tabindex="-1" role="dialog" aria-labelledby="instant_form" aria-hidden="true">
+						<div class="modal-dialog">
+							<div class="modal-content">
+								<div class="modal-header">
+									<h5 class="modal-title"></h5>
+									<button class="close" type="button" data-dismiss="modal" aria-label="Close">
+                                        <span aria-hidden="true">×</span>
+                                    </button>
+								</div>
+								<div class="modal-body">
+									<form id="formUsers" name="formUsers" method="post" class="form-horizontal padding-20">
+									    
+									    <div class="form-group">
+										    <label for="add_users"><i class="glyphicon glyphicon-user"></i>Number of users:</label>	
+											<div class="input-group">
+												<input class="form-control" type="text" id="add_users" name="add_users" max="5" min="1" placeholder="Number of users" required>
+											    <div class="input-group-append">
+                                                    <span class="input-group-text"><i class="fas fa-user-friends"></i></span>
+                                                </div>
+											</div>
+										</div>
+										
+										<div class="form-group">
+										    <label for="prefix"><i class="glyphicon glyphicon-user"></i>Username Prefix:</label>	
+											<div class="input-group">
+												<input class="form-control" type="text" id="prefix" name="prefix" placeholder="Enter username prefix" required>
+											    <div class="input-group-append">
+                                                    <span class="input-group-text"><i class="fas fa-user-edit"></i></span>
+                                                </div>
+											</div>
+										</div>
+										
+										<div class="form-group d-none">
+											<label class="control-label" for="generate_type">Tipo de cliente:</label>
+    										<div class="input-group">
+    											<select class="custom-select" id="generate_type" name="generate_type" title="Tipo de cliente">
+    												<option value="{$premium_encrypt}" selected="selected">Premium Client</option>
+    												<!--option value="{$vip_encrypt}">VIP Client</option>
+    												<option value="{$private_encrypt}">Cliente Private</option-->
+    											</select>
+    											<div class="input-group-append">
+                                                    <span class="input-group-text"><i class="fas fa-user-tag"></i></span>
+                                                </div>
+    										</div>
+										</div>
+										
+										<input type="hidden" class="form-control" id="submitted" name="submitted" value="Generate Account">
+										<div class="control-group form-group">
+											<div class="modal-footer">
+												<button type="submit" id="submit" name="submit" class="btn btn-primary">Guardar</button>
+												<button type="button" class="btn btn-danger" data-dismiss="modal">Cancelar</button>
+												<div id="generate_loader"></div>
+											</div>
+										</div>
+									</form>
+								</div>
+							</div>
+						</div>
+					</div>
+				<!-- End Trial Bootstrap modal -->
+					
+					<!-- Start Bootstrap modal -->
+					<div class="modal fade" id="changepwd_modal" tabindex="-1" role="dialog" aria-labelledby="changepwd_modal" aria-hidden="true">
+						<div class="modal-dialog">
+							<div class="modal-content">
+								<div class="modal-header">
+									<h5 class="modal-title"></h5>
+									<button class="close" type="button" data-dismiss="modal" aria-label="Close">
+                                        <span aria-hidden="true">×</span>
+                                    </button>
+								</div>
+								<div class="modal-body">
+									<form id="change_pwd" name="change_pwd">
+										<input type="hidden" id="submitted" name="submitted" value="Change Password">
+										<div class="row">
+											<div class="col-md-12">
+												<div class="form-group">
+													<label class="control-label" for="old_user_pass"><i class="fas fa-lock"></i> Old Password:</label>
+														<input type="password" class="form-control" id="old_user_pass" name="old_user_pass"
+														autocomplete="off" ondrop="return false;" onpaste="return false;" placeholder="Enter Old Password" required>
+												</div>
+
+												<div class="form-group">
+												    <label class="control-label" for="new_user_pass"><i class="fas fa-lock"></i> New Password:</label>
+														<input type="password" class="form-control" id="new_user_pass" name="new_user_pass"
+														autocomplete="off" ondrop="return false;" onpaste="return false;" placeholder="Enter New Password" required>
+												</div>
+
+												<div class="form-group">
+													<label class="control-label" for="new_user_pass2"><i class="fas fa-lock"></i> Confirm New Password:</label>
+														<input type="password" class="form-control" id="new_user_pass2" name="new_user_pass2"
+														autocomplete="off" ondrop="return false;" onpaste="return false;" placeholder="Verify New Password" required>
+												</div>
+											</div>
+										</div>
+										<div class="control-group form-group">
+											<div class="modal-footer">
+												<button type="submit" id="submitChangePWD" name="submitChangePWD" class="btn btn-success">Change Password</button>
+												<button type="button" class="btn btn-danger" data-dismiss="modal">Cancelar</button>
+												<span align="left" id="loading"></span>
+											</div>
+										</div>
+									</form>
+								</div><!-- /.modal-body -->
+							</div><!-- /.modal-content -->
+						</div><!-- /.modal-dialog -->
+					</div><!-- /.modal -->
+				<!-- End Bootstrap modal -->
+				
+				<div class="modal fade" id="modal_server" tabindex="-1" role="dialog" aria-labelledby="modal_server" aria-hidden="true">
+						<div class="modal-dialog">
+							<div class="modal-content">
+								<div class="modal-header">
+									<h5 class="modal-title"></h5>
+									<button class="close" type="button" data-dismiss="modal" aria-label="Close">
+                                        <span aria-hidden="true">×</span>
+                                    </button>
+								</div>
+								<div class="modal-body">
+									<form id="server_frm" name="server_frm">
+										<input type="hidden" id="server_id" name="server_id">
+										<input type="hidden" id="submitted" name="submitted" value="Server Upload">
+										<div class="row">
+											<div class="form-group col-md-12">
+													<label class="control-label" for="server_name">Server Name</label>
+													<input class="form-control" id="server_name" name="server_name" placeholder="Server Name" />
+											</div>
+											<!--div class="form-group col-md-12">
+													<label class="control-label" for="server_category">Server Category</label>
+													<select class="form-control" id="server_category" name="server_category">
+														<option value="premium" selected="selected">Premium Server</option>
+													</select>
+											</div-->
+											<div class="form-group col-md-12">
+													<label class="control-label" for="server_ip">Server IP</label>
+													<input class="form-control" id="server_ip" name="server_ip" placeholder="IP Address" />
+											</div>
+										</div>
+										<div class="row">											
+											<div class="form-group col-md-12">
+													<label class="control-label" for="server_port">Port</label>
+													<input class="form-control" id="server_port" name="server_port" placeholder="Server Port" />
+											</div>
+											<!--div class="form-group col-md-12">
+													<label class="control-label input-group-addon" for="server_folder">Port</label>
+													<input class="form-control" id="server_folder" name="server_folder" placeholder="Server Folder" />
+											</div>
+											<div class="form-group col-md-12">
+													<label class="control-label input-group-addon" for="server_tcp">TCP</label>
+													<input class="form-control" id="server_tcp" name="server_tcp" placeholder="Server TCP" />
+											</div-->
+										</div>
+										<div class="control-group form-group">
+											<div class="modal-footer">
+												<button type="submit" id="submitServer" name="submitServer" class="btn btn-success">Server Upload</button>
+												<button type="button" class="btn btn-danger" data-dismiss="modal">Cancelar</button>
+												<span align="left" id="loading"></span>
+											</div>
+										</div>
+									</form>
+								</div>
+							</div><!-- /.modal-content -->
+						</div><!-- /.modal-dialog -->
+					</div><!-- /.modal -->
+					<!-- End Bootstrap modal -->
+					
+					<div class="modal fade profile_frm" id="profile_modal" tabindex="-1" role="dialog" aria-labelledby="profile_modal" aria-hidden="true">
+					<div class="modal-dialog">
+						<div class="modal-content">
+							<div class="modal-header">
+									<h5 class="modal-title"></h5>
+									<button class="close" type="button" data-dismiss="modal" aria-label="Close">
+                                        <span aria-hidden="true">×</span>
+                                    </button>
+								</div>
+							<div class="modal-body">
+								<form id="profile_frm" name="profile_frm" accept-charset="UTF-8" enctype="multipart/form-data"
+								method="POST">
+									<input type="hidden" id="submitted" name="submitted" value="Edit Profile">
+									<div class="row">
+										<div class="col-md-12">
+											<div class="form-group">
+												<label class="control-label" for="full_name">Full Name</label>
+												<input class="form-control" id="full_name" type="text" name="full_name" value="" required> 	
+											</div>
+											<div class="form-group">
+												<label class="control-label" for="user_email">Email Address</label>
+												<input class="form-control" type="email" id="user_email" name="user_email" value="" required>
+											</div>
+											<div class="form-group">
+												<label class="input-group-addon control-label" for="profile_number">Phone Number</label>
+												<input id="profile_number" type="text" class="form-control"
+												autocomplete="off" onkeypress="return IsNumeric(event);"
+												ondrop="return false;" onpaste="return false;"
+												maxlength="13" name="profile_number" value="" required>
+											</div>
+											<div class="form-group">
+												<label class="control-label" for="profile_address">Address</label>
+												<textarea id="profile_address" class="form-control"
+												name="profile_address" rows="2" wrap="hard" required></textarea>
+											</div>
+											<span class="mb-3">Profile Image</span>
+											<div class="form-group">
+												<input type="file" id="images" name="images[]" data-btn-text="Select Image" >
+											</div>
+										</div>	
+									</div>
+									<input type="hidden"  id="profile_secret" name="profile_secret">
+
+									<div class="control-group form-group">
+										<div class="modal-footer">
+											<button type="submit" id="submitProfile" name="submitProfile" class="btn btn-success">Edit Profile</button>
+											<button type="button" class="btn btn-danger" data-dismiss="modal">Cancelar</button>
+											<span align="left" id="loading"></span>
+										</div>
+									</div>
+								</form>
+							</div><!-- /.modal-body -->
+						</div><!-- /.modal-content -->
+					</div><!-- /.modal-dialog -->
+				</div><!-- /.modal -->
+				<!-- End Bootstrap modal -->
+				
+				<!-- Start Manual Duration modal -->
+					<div class="modal fade" id="duration_form" tabindex="-1" role="dialog" aria-labelledby="duration_form" aria-hidden="true">
+						<div class="modal-dialog">
+							<div class="modal-content">
+								<div class="modal-header">
+									<h5 class="modal-title"></h5>
+									<button class="close" type="button" data-dismiss="modal" aria-label="Close">
+                                        <span aria-hidden="true">×</span>
+                                    </button>
+								</div>
+								<div class="modal-body">
+									<form id="formDuration" name="formDuration">
+									<input type="hidden" id="submitted" name="submitted" value="Reload Durations">
+									
+									
+									<p id="conv2"></p>
+									
+									<hr>
+									
+									<div class="form-group">
+										<label class="control-label" for="duration">Duracion:</label>
+										<div class="input-group">   
+    										<select class="custom-select credits" id="duration" name="duration">
+    											<option value="">-- Elegir duracion --</option>
+    											{foreach from=$duration key=id item=i}
+    											{$i}
+    											{/foreach}
+    										</select>
+    										<div class="input-group-append">
+                                                <span class="input-group-text"><i class="fas fa-user-clock"></i></span>
+                                            </div>
+    									</div>
+									</div>
+									
+									<div class="form-group d-none">
+										<label class="control-label" for="category">Tipo de cliente:</label>
+    									<div class="input-group">
+    										<select class="custom-select conv2" id="category" name="category" title="Tipo de cliente">
+    											<option value="{$premium_encrypt}">Premium</option>
+    											<!--option value="{$vip_encrypt}">VIP</option>
+    											<option value="{$private_encrypt}">Private</option-->
+    										</select>
+    										<div class="input-group-append">
+                                                <span class="input-group-text"><i class="fas fa-user-tag"></i></span>
+                                            </div>
+    									</div>
+									</div>
+									
+									<div class="control-group form-group">
+										<div class="modal-footer">
+											<button type="submit" id="submit" name="submit" class="btn btn-success">Aplicar</button>
+											<button type="button" class="btn btn-danger" data-dismiss="modal">Cancelar</button>
+											<input type="hidden" class="form-control" id="duration_code" name="duration_code">
+											<input type="hidden" class="form-control" id="duration_secret" name="duration_secret">
+										</div>
+									</div>
+								</form>
+								</div>
+							</div>
+						</div>
+					</div>
+				<!-- End Manual Duration modal -->
+				
+				<!-- End Bootstrap modal -->
+					<div class="modal fade" id="convert_form" tabindex="-1" role="dialog" aria-labelledby="convert_form" aria-hidden="true">
+						<div class="modal-dialog">
+							<div class="modal-content">
+								<div class="modal-header">
+									<h5 class="modal-title"></h5>
+									<button class="close" type="button" data-dismiss="modal" aria-label="Close">
+                                        <span aria-hidden="true">×</span>
+                                    </button>
+								</div>
+								<div class="modal-body">
+									<form id="convertForm" name="convertForm" method="post" class="form-horizontal">
+										<div id="success_convert"></div>
+										<p id="conv"></p>
+					                    <hr>
+					                    <div class="form-group">
+    										<label class="control-label" for="category">Tipo de duracion:</label>
+        									<div class="input-group">
+        										<select class="custom-select conv" id="category" name="category" title="Tipo de cliente">
+        											<option value="{$premium_encrypt}">Premium</option>
+        											<option value="{$vip_encrypt}">VIP</option>
+        											<option value="{$private_encrypt}">Private</option>
+        										</select>
+        										<div class="input-group-append">
+                                                    <span class="input-group-text"><i class="fas fa-user-tag"></i></span>
+                                                </div>
+        									</div>
+    									</div>
+					
+										<div class="control-group form-group">
+    										<div class="modal-footer">
+    											<button type="button" class="btn btn-success" id="convertSubmit" name="convertSubmit" onclick="conversion()">Convertir</button>
+        										<button type="button" class="btn btn-danger" data-dismiss="modal">Cancelar</button>
+        										<input type="hidden" class="form-control" id="secret" name="secret" value="{$secret}" />
+										        <input type="hidden" id="submitted" name="submitted" value="Convert Duration" />
+        										<!--div id="conversion_loader"></div-->
+    										</div>
+    									</div>
+									</form>
+								</div>
+							</div>
+						</div>
+					</div>
+				<!-- End Bootstrap modal -->
+				
+				<!-- Start Self Reload modal -->
+					<div class="modal fade" id="selfreload_form" tabindex="-1" role="dialog" aria-labelledby="selfreload_form" aria-hidden="true">
+						<div class="modal-dialog">
+							<div class="modal-content">
+								<div class="modal-header">
+									<h5 class="modal-title"></h5>
+									<button class="close" type="button" data-dismiss="modal" aria-label="Close">
+                                        <span aria-hidden="true">×</span>
+                                    </button>
+								</div>
+								<div class="modal-body">
+									<form id="formSelf" name="formSelf" method="post" class="form-horizontal padding-20">
+										<input type="hidden" id="submitted" name="submitted" value="Generate Voucher">
+										
+										<div class="form-group">
+										    <label id="qty">Cantidad:</label>	
+											<div class="input-group">
+												<input type="text" class="form-control" id="qty" name="qty" min="1" 
+        											{if $user_level_2 == 'subadmin' || $user_level_2 == 'administrator' || $user_level_2 == 'reseller' || $user_level_2 == 'subreseller'}
+        											max="{$credits_2}"
+        										{/if} autocomplete="off" onkeypress="return IsNumeric(event);"
+        											ondrop="return false;" onpaste="return false;" value="1" required>
+											    <div class="input-group-append">
+                                                    <span class="input-group-text"><i class="fas fa-barcode"></i></span>
+                                                </div>
+											</div>
+										</div>
+										
+										<div class="form-group">
+    										<label class="control-label" for="category">Tipo de duracion:</label>
+        									<div class="input-group">
+        										<select class="custom-select credits" id="category" name="category" title="Tipo de cliente">
+        											<option value="{$premium_encrypt}">Premium</option>
+        											<option value="{$vip_encrypt}">VIP</option>
+        											<option value="{$private_encrypt}">Private</option>
+        										</select>
+        										<div class="input-group-append">
+                                                    <span class="input-group-text"><i class="fas fa-user-tag"></i></span>
+                                                </div>
+        									</div>
+    									</div>
+										
+										<div class="control-group form-group">
+											<div class="modal-footer">
+												<button type="submit" id="submit" name="submit" class="btn btn-primary">Guardar</button>
+												<button type="button" class="btn btn-danger" data-dismiss="modal">Cancelar</button>
+												<input type="hidden" class="form-control" id="code" name="code" value="{$secret}">
+												<div id="vouchers_loader"></div>
+											</div>
+										</div>
+									</form>
+								</div>
+							</div>
+						</div>
+					</div>
+				<!-- End Self Reload modal -->

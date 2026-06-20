@@ -1,0 +1,14 @@
+<script type="text/javascript" src="{$base_url}bootstrap/assets/jquery/jquery-3.1.1.js"></script>
+<script type="text/javascript" src="{$base_url}bootstrap/assets/jquery/2.1.4/jquery.js"></script>
+<script type="text/javascript" src="{$base_url}bootstrap/public/js/jquery.js"></script>
+<script type="text/javascript" src="{$base_url}bootstrap/public/js/jquery.mixitup.js"></script>
+<script type="text/javascript" src="{$base_url}bootstrap/public/js/bootstrap.js"></script>
+<script type="text/javascript" src="{$base_url}bootstrap/public/js/modernizr.custom.js"></script>
+<script type="text/javascript" src="{$base_url}bootstrap/public/js/jquery.bxslider.js"></script>
+<script type="text/javascript" src="{$base_url}bootstrap/public/js/jquery.cslider.js"></script>
+<script type="text/javascript" src="{$base_url}bootstrap/public/js/jquery.placeholder.js"></script>
+<script type="text/javascript" src="{$base_url}bootstrap/public/js/jquery.inview.js"></script>
+<script type="text/javascript" src="{$base_url}bootstrap/public/js/app.js"></script>
+<script type="text/javascript" src="{$base_url}bootstrap/assets/custom.fileupload/custom.fle_upload.js"></script>
+<script type="text/javascript" src="{$base_url}bootstrap/assets/jqueryform/jquery.form.js"></script>
+<!--script type="text/javascript" src="https://maps.googleapis.com/maps/api/js?sensor=false&amp;callback=initializeMap"></script-->
