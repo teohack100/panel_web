@@ -35,14 +35,27 @@
         {include file='css/custom_css.tpl'}
         {include file='css/extra_button.tpl'}
         {include file='css/formvalidation_css.tpl'}
+        {if $credit_logs_embed_admin == 1}
+        <style>
+        {literal}
+            html, body.programmit-admin-embed { min-height: 0 !important; height: auto !important; background: #f4f7fb !important; }
+            body.programmit-admin-embed { margin: 0; overflow-x: hidden; overflow-y: hidden; }
+            .programmit-admin-embed-wrapper { min-height: 0 !important; height: auto !important; background: transparent !important; }
+            .programmit-admin-embed-content { margin-left: 0 !important; padding: 0 !important; min-height: 0 !important; height: auto !important; }
+            .programmit-admin-embed-content .container-fluid { padding: 14px !important; }
+            .programmit-admin-embed-content .page-title-box { display: none !important; }
+            .programmit-admin-embed-content .card { box-shadow: none !important; }
+        {/literal}
+        </style>
+        {/if}
 </head>
-<body>
-{include file='apps/topnav.tpl'}
+<body{if $credit_logs_embed_admin == 1} class="programmit-admin-embed"{/if}>
+{if $credit_logs_embed_admin != 1}{include file='apps/topnav.tpl'}{/if}
 <!-- Site wrapper -->
-<div class="page-wrapper">
-{include file='apps/sidenavi.tpl'}
+<div class="{if $credit_logs_embed_admin == 1}programmit-admin-embed-wrapper{else}page-wrapper{/if}">
+{if $credit_logs_embed_admin != 1}{include file='apps/sidenavi.tpl'}{/if}
     <!-- Page Content-->
-            <div class="page-content">
+            <div class="{if $credit_logs_embed_admin == 1}page-content programmit-admin-embed-content{else}page-content{/if}">
 
                 <div class="container-fluid">
                     <!-- Page-Title -->
@@ -98,7 +111,7 @@
 
                 </div><!-- container -->
 
-                {include file='apps/footer.tpl'}
+                {if $credit_logs_embed_admin != 1}{include file='apps/footer.tpl'}{/if}
                 <!--end footer-->
             </div>
             <!-- end page content -->
@@ -153,5 +166,44 @@
         {include file='js/active-premium-client.tpl'}
         {include file='js/credits.tpl'}
         {include file='js/pass_toggle.tpl'}
+        {if $credit_logs_embed_admin == 1}
+        {literal}
+        <script>
+        (function () {
+            if (window.parent === window) { return; }
+            var timer = null;
+            function postHeight() {
+                var doc = document.documentElement;
+                var body = document.body;
+                var height = Math.max(
+                    body ? body.scrollHeight : 0,
+                    body ? body.offsetHeight : 0,
+                    doc ? doc.scrollHeight : 0,
+                    doc ? doc.offsetHeight : 0
+                );
+                window.parent.postMessage({ type: 'programmit_admin_embed_height', height: height }, '*');
+            }
+            function queueHeight() {
+                if (timer) { window.clearTimeout(timer); }
+                timer = window.setTimeout(postHeight, 60);
+            }
+            window.addEventListener('load', function () {
+                queueHeight();
+                window.setTimeout(postHeight, 180);
+                window.setTimeout(postHeight, 360);
+            });
+            window.addEventListener('resize', queueHeight);
+            if (window.MutationObserver && document.body) {
+                new MutationObserver(queueHeight).observe(document.body, {
+                    childList: true,
+                    subtree: true,
+                    attributes: true,
+                    characterData: true
+                });
+            }
+        })();
+        </script>
+        {/literal}
+        {/if}
 </body>
 </html>

@@ -14,9 +14,19 @@ programmit_vpn_ensure_tables($db);
 
 if (function_exists('programmit_saas_can_manage_from_current_host') && function_exists('programmit_saas_get_control_host')) {
     if (!programmit_saas_can_manage_from_current_host($db)) {
-        header("Location: https://" . programmit_saas_get_control_host($db) . "/index.php?p=vpn-control" . $vpn_embed_qs);
+        $controlHost = programmit_saas_get_control_host($db);
+        if ($vpn_embed_admin) {
+            header("Location: https://" . $controlHost . "/index.php?p=vpn-control" . $vpn_embed_qs);
+        } else {
+            header("Location: https://" . $controlHost . "/admin.php#vpn-control-main");
+        }
         exit;
     }
+}
+
+if (!$vpn_embed_admin) {
+    header("Location: ".$db->base_url()."admin.php#vpn-control-main");
+    exit;
 }
 
 function programmit_vpn_control_find_by_id($rows, $id) {
@@ -60,8 +70,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_vpn_server'])) {
         }
         if ($serverKey === '') {
             $vpn_error = 'Clave de servidor invalida.';
+        } elseif ($serverHost !== '' && !programmit_vpn_is_host_like($serverHost)) {
+            $vpn_error = 'Host del servidor invalido.';
+        } elseif ($serverIp !== '' && !programmit_vpn_is_ip($serverIp)) {
+            $vpn_error = 'IP del servidor invalida.';
         } elseif ($serverPort <= 0 || $serverPort > 65535) {
             $vpn_error = 'Puerto del servidor invalido.';
+        } elseif ($publicBaseUrl !== '' && !programmit_vpn_is_http_url($publicBaseUrl)) {
+            $vpn_error = 'Public base URL invalida.';
+        } elseif (!programmit_vpn_json_is_valid($publicPayloadJson)) {
+            $vpn_error = 'Payload publico JSON invalido.';
+        } elseif (!programmit_vpn_json_is_valid($metaJson)) {
+            $vpn_error = 'Meta JSON interno invalido.';
         } elseif ($status === '' || !in_array($status, array('active', 'maintenance', 'disabled'), true)) {
             $vpn_error = 'Estado de servidor invalido.';
         } else {
@@ -89,6 +109,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_vpn_server'])) {
                 $serverCompatSetSql = '';
                 $serverCompatInsertColumns = '';
                 $serverCompatInsertValues = '';
+                $savedServerId = 0;
 
                 if (programmit_vpn_table_has_column($db, 'vpn_servers', 'provider')) {
                     $serverCompatSetSql .= ", provider='" . $db->SanitizeForSQL($serverProvider !== '' ? $serverProvider : 'custom') . "'";
@@ -150,6 +171,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_vpn_server'])) {
                     $vpn_success = $ok ? 'Servidor actualizado.' : '';
                     if (!$ok) {
                         $vpn_error = 'No se pudo actualizar el servidor.';
+                    } else {
+                        $savedServerId = $serverId;
                     }
                 } else {
                     $idParts = programmit_vpn_insert_id_parts($db, 'vpn_servers', 'id');
@@ -174,11 +197,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_vpn_server'])) {
                          '".$db->SanitizeForSQL($status)."',
                          '".$db->SanitizeForSQL(programmit_vpn_json_encode($publicPayload))."',
                          '".$db->SanitizeForSQL(programmit_vpn_json_encode($metaPayload))."',
-                         NOW(),
-                         NOW()".$serverCompatInsertValues.$idParts['values'].")");
+                          NOW(),
+                          NOW()".$serverCompatInsertValues.$idParts['values'].")");
                     $vpn_success = $ok ? 'Servidor creado.' : '';
                     if (!$ok) {
                         $vpn_error = 'No se pudo crear el servidor.';
+                    } else {
+                        $savedServerId = method_exists($db, 'sql_nextid') ? (int)$db->sql_nextid() : 0;
+                    }
+                }
+
+                if ($vpn_error === '' && $savedServerId > 0) {
+                    $legacyBridge = programmit_vpn_sync_server_to_legacy($db, $savedServerId);
+                    if (!$legacyBridge['ok']) {
+                        $vpn_error = 'Servidor guardado, pero fallo el puente legacy: ' . (isset($legacyBridge['message']) ? $legacyBridge['message'] : 'error no especificado');
+                    } elseif (isset($legacyBridge['message']) && trim((string)$legacyBridge['message']) !== '') {
+                        $vpn_success .= ' ' . trim((string)$legacyBridge['message']);
                     }
                 }
             }
@@ -201,6 +235,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_vpn_method'])) {
 
     if ($methodKey === '' || $methodName === '') {
         $vpn_error = 'Clave y nombre del metodo son obligatorios.';
+    } elseif (!programmit_vpn_json_is_valid($configJson)) {
+        $vpn_error = 'Config JSON del metodo invalido.';
     } else {
         if ($methodId > 0) {
             $existingQry = $db->sql_query("SELECT id, method_key
@@ -345,8 +381,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_vpn_mapping'])) 
         $vpn_error = 'Debes seleccionar metodo y servidor.';
     } elseif (!in_array($endpointProtocol, array('https', 'http', 'tcp', 'udp'), true)) {
         $vpn_error = 'Protocolo de despliegue invalido.';
+    } elseif ($endpointHost !== '' && !programmit_vpn_is_host_like($endpointHost)) {
+        $vpn_error = 'Host endpoint invalido.';
     } elseif ($endpointPort <= 0 || $endpointPort > 65535) {
         $vpn_error = 'Puerto de despliegue invalido.';
+    } elseif (!programmit_vpn_json_is_valid($configJson)) {
+        $vpn_error = 'Config JSON de la relacion invalido.';
     } else {
         $dupSql = "SELECT id FROM vpn_method_server_map
             WHERE method_id='".$db->SanitizeForSQL($methodId)."'

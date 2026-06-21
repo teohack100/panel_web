@@ -230,7 +230,9 @@ if (!$isAdminUser) {
 }
 
 if (function_exists('programmit_control_is_host') && programmit_control_is_host($db)) {
-    $controlIp = $db->get_client_ip();
+    $controlIp = function_exists('programmit_control_security_resolve_client_ip')
+        ? programmit_control_security_resolve_client_ip($db)
+        : $db->get_client_ip();
     if (function_exists('programmit_control_security_ip_allowed') && !programmit_control_security_ip_allowed($db, $controlIp)) {
         clear_auth_cookies();
         header("Location: " . $db->base_url() . "admin-login.php?control=ip_blocked");
@@ -268,6 +270,10 @@ $baseUrl = $db->base_url();
 $dashboardUrl = $baseUrl . "index.php?p=dashboard";
 $logoutUrl = $baseUrl . "index.php?p=logout";
 $refreshUrl = $baseUrl . "admin.php?refresh=1";
+$serverStatusEmbedUrl = $baseUrl . "index.php?p=server-status&embed=admin";
+$serverUpdateEmbedUrl = $baseUrl . "index.php?p=server-update&embed=admin";
+$noticeUpdateEmbedUrl = $baseUrl . "index.php?p=notice-update&embed=admin";
+$creditLogsEmbedUrl = $baseUrl . "index.php?p=credit-logs&embed=admin";
 $financeMethodsUrl = $baseUrl . "index.php?p=finance-methods&tab=methods";
 $financeMethodsEmbedUrl = $baseUrl . "index.php?p=finance-methods&tab=methods&embed=admin";
 $vpnControlEmbedUrl = $baseUrl . "index.php?p=vpn-control&embed=admin";
@@ -303,6 +309,21 @@ if ($clientDefaultPasswordConfigured && function_exists('programmit_client_defau
 $panelLogoUrl = admin_asset_url($baseUrl, $panelLogoStored, 'logo/icon_panel.png');
 $panelLoginLogoUrl = admin_asset_url($baseUrl, $panelLoginLogoStored !== '' ? $panelLoginLogoStored : $panelLogoStored, 'logo/icon_panel.png');
 $panelFaviconUrl = admin_asset_url($baseUrl, $panelFaviconStored, 'logo/favicon2.png');
+$controlSecurityControlHost = function_exists('programmit_saas_get_control_host') ? (string)programmit_saas_get_control_host($db) : 'panel.programmit.com';
+$controlSecurityIsHost = (function_exists('programmit_control_is_host') && programmit_control_is_host($db));
+$controlSecurityCurrentIp = function_exists('programmit_control_security_resolve_client_ip')
+    ? (string)programmit_control_security_resolve_client_ip($db)
+    : (string)$db->get_client_ip();
+$controlSecuritySettings = array(
+    'strict_mode' => function_exists('programmit_control_security_bool') ? programmit_control_security_bool(programmit_control_security_setting($db, 'control_admin_strict_mode', '1'), true) : true,
+    'require_superadmin' => function_exists('programmit_control_security_bool') ? programmit_control_security_bool(programmit_control_security_setting($db, 'control_admin_require_superadmin', '1'), true) : true,
+    'ip_whitelist_enabled' => function_exists('programmit_control_security_bool') ? programmit_control_security_bool(programmit_control_security_setting($db, 'control_admin_ip_whitelist_enabled', '0'), false) : false,
+    'ip_whitelist' => trim((string)programmit_control_security_setting($db, 'control_admin_ip_whitelist', '')),
+    'allowed_user_ids' => trim((string)programmit_control_security_setting($db, 'control_admin_allowed_user_ids', '1')),
+    'allowed_emails' => trim((string)programmit_control_security_setting($db, 'control_admin_allowed_emails', '')),
+    'allow_register' => function_exists('programmit_control_security_bool') ? programmit_control_security_bool(programmit_control_security_setting($db, 'control_admin_allow_register', '0'), false) : false,
+    'allow_magic_login' => function_exists('programmit_control_security_bool') ? programmit_control_security_bool(programmit_control_security_setting($db, 'control_admin_allow_magic_login', '0'), false) : false,
+);
 
 $adminFlash = admin_flash_pull();
 if ($adminFlash['message'] !== '') {
@@ -404,6 +425,73 @@ if (strtoupper((string)($_SERVER['REQUEST_METHOD'] ?? 'GET')) === 'POST') {
 
         if ($adminNoticeError !== '') {
             admin_redirect_with_flash($baseUrl, 'cfg-appearance', 'error', $adminNoticeError);
+        }
+    }
+
+    if ($adminNoticeError === '' && isset($_POST['save_control_security'])) {
+        $strictMode = isset($_POST['control_admin_strict_mode']) ? '1' : '0';
+        $requireSuperadmin = isset($_POST['control_admin_require_superadmin']) ? '1' : '0';
+        $whitelistEnabled = isset($_POST['control_admin_ip_whitelist_enabled']) ? '1' : '0';
+        $rawWhitelist = trim((string)($_POST['control_admin_ip_whitelist'] ?? ''));
+        $rawAllowedUserIds = trim((string)($_POST['control_admin_allowed_user_ids'] ?? ''));
+        $rawAllowedEmails = trim((string)($_POST['control_admin_allowed_emails'] ?? ''));
+        $allowRegister = isset($_POST['control_admin_allow_register']) ? '1' : '0';
+        $allowMagicLogin = isset($_POST['control_admin_allow_magic_login']) ? '1' : '0';
+
+        $invalidIps = array();
+        $invalidUserIds = array();
+        $invalidEmails = array();
+        $allowedIps = function_exists('programmit_control_security_normalize_ip_list')
+            ? programmit_control_security_normalize_ip_list($rawWhitelist, $invalidIps)
+            : array();
+        $allowedUserIds = function_exists('programmit_control_security_normalize_user_id_list')
+            ? programmit_control_security_normalize_user_id_list($rawAllowedUserIds, $invalidUserIds)
+            : array();
+        $allowedEmails = function_exists('programmit_control_security_normalize_email_list')
+            ? programmit_control_security_normalize_email_list($rawAllowedEmails, $invalidEmails)
+            : array();
+
+        if (!empty($invalidIps)) {
+            $adminNoticeError = 'IPs invalidas en whitelist: ' . implode(', ', array_slice($invalidIps, 0, 10));
+        } elseif (!empty($invalidUserIds)) {
+            $adminNoticeError = 'IDs invalidos: ' . implode(', ', array_slice($invalidUserIds, 0, 10));
+        } elseif (!empty($invalidEmails)) {
+            $adminNoticeError = 'Emails invalidos: ' . implode(', ', array_slice($invalidEmails, 0, 10));
+        } elseif ($whitelistEnabled === '1' && empty($allowedIps)) {
+            $adminNoticeError = 'Activas la whitelist pero no hay IPs validas.';
+        } elseif ($strictMode === '1' && $requireSuperadmin !== '1' && empty($allowedUserIds) && empty($allowedEmails)) {
+            $adminNoticeError = 'Con modo estricto activo debes permitir superadmin o definir IDs/emails autorizados.';
+        } else {
+            $autoAddedIp = '';
+            if (
+                $whitelistEnabled === '1' &&
+                function_exists('programmit_control_security_is_valid_ip') &&
+                programmit_control_security_is_valid_ip($controlSecurityCurrentIp) &&
+                !in_array($controlSecurityCurrentIp, $allowedIps, true)
+            ) {
+                $allowedIps[] = $controlSecurityCurrentIp;
+                $autoAddedIp = $controlSecurityCurrentIp;
+            }
+
+            programmit_control_security_set_setting($db, 'control_admin_strict_mode', $strictMode);
+            programmit_control_security_set_setting($db, 'control_admin_require_superadmin', $requireSuperadmin);
+            programmit_control_security_set_setting($db, 'control_admin_ip_whitelist_enabled', $whitelistEnabled);
+            programmit_control_security_set_setting($db, 'control_admin_ip_whitelist', implode(', ', $allowedIps));
+            programmit_control_security_set_setting($db, 'control_admin_allowed_user_ids', implode(', ', $allowedUserIds));
+            programmit_control_security_set_setting($db, 'control_admin_allowed_emails', implode(', ', $allowedEmails));
+            programmit_control_security_set_setting($db, 'control_admin_allow_register', $allowRegister);
+            programmit_control_security_set_setting($db, 'control_admin_allow_magic_login', $allowMagicLogin);
+
+            admin_clear_render_caches();
+            $successMessage = 'Seguridad del host de control guardada.';
+            if ($autoAddedIp !== '') {
+                $successMessage .= ' IP actual agregada automaticamente: ' . $autoAddedIp . '.';
+            }
+            admin_redirect_with_flash($baseUrl, 'cfg-security', 'success', $successMessage);
+        }
+
+        if ($adminNoticeError !== '') {
+            admin_redirect_with_flash($baseUrl, 'cfg-security', 'error', $adminNoticeError);
         }
     }
 
@@ -1263,12 +1351,13 @@ if (admin_table_exists('support_ticket')) {
             <div class="side-group">
                 <p class="side-title">Operaciones</p>
                 <ul class="side-links">
-                    <li><a class="side-link" href="<?php echo admin_h($baseUrl . 'index.php?p=server-status'); ?>"><span class="side-link-icon"><i class="fa fa-server"></i></span><span class="side-link-label">Estado servidor</span></a></li>
-                    <li><a class="side-link js-section-link" href="#vpn-control-main" data-target="vpn-control-main"><span class="side-link-icon"><i class="fa fa-random"></i></span><span class="side-link-label">VPN Multi-VPS</span></a></li>
-                    <li><a class="side-link" href="<?php echo admin_h($baseUrl . 'index.php?p=server-update'); ?>"><span class="side-link-icon"><i class="fa fa-refresh"></i></span><span class="side-link-label">Actualizacion servidor</span></a></li>
-                    <li><a class="side-link" href="<?php echo admin_h($baseUrl . 'index.php?p=notice-update'); ?>"><span class="side-link-icon"><i class="fa fa-bullhorn"></i></span><span class="side-link-label">Avisos</span></a></li>
+                    <li><a class="side-link js-section-link" href="#vpn-control-main" data-target="vpn-control-main"><span class="side-link-icon"><i class="fa fa-plus-circle"></i></span><span class="side-link-label">Agregar servidor</span></a></li>
+                    <li><a class="side-link js-section-link" href="#server-status-main" data-target="server-status-main"><span class="side-link-icon"><i class="fa fa-server"></i></span><span class="side-link-label">Estado servidor</span></a></li>
+                    <li><a class="side-link js-section-link" href="#vpn-control-main" data-target="vpn-control-main"><span class="side-link-icon"><i class="fa fa-random"></i></span><span class="side-link-label">Gestion VPS</span></a></li>
+                    <li><a class="side-link js-section-link" href="#server-update-main" data-target="server-update-main"><span class="side-link-icon"><i class="fa fa-refresh"></i></span><span class="side-link-label">Actualizacion servidor</span></a></li>
+                    <li><a class="side-link js-section-link" href="#notice-update-main" data-target="notice-update-main"><span class="side-link-icon"><i class="fa fa-bullhorn"></i></span><span class="side-link-label">Avisos</span></a></li>
                     <li><a class="side-link js-section-link" href="#ops-client-defaults" data-target="ops-client-defaults"><span class="side-link-icon"><i class="fa fa-key"></i></span><span class="side-link-label">Clave general clientes</span></a></li>
-                    <li><a class="side-link" href="<?php echo admin_h($baseUrl . 'index.php?p=credit-logs'); ?>"><span class="side-link-icon"><i class="fa fa-list-alt"></i></span><span class="side-link-label">Historial de creditos</span></a></li>
+                    <li><a class="side-link js-section-link" href="#credit-logs-main" data-target="credit-logs-main"><span class="side-link-icon"><i class="fa fa-list-alt"></i></span><span class="side-link-label">Historial de creditos</span></a></li>
                     <li><a class="side-link js-section-link" href="#stats-main" data-target="stats-main" data-open-detail="1"><span class="side-link-icon"><i class="fa fa-line-chart"></i></span><span class="side-link-label">Estadisticas</span></a></li>
                 </ul>
             </div>
@@ -1276,6 +1365,7 @@ if (admin_table_exists('support_ticket')) {
                 <p class="side-title">Configuracion</p>
                 <ul class="side-links">
                     <li><a class="side-link js-section-link" href="#cfg-general" data-target="cfg-general"><span class="side-link-icon"><i class="fa fa-cogs"></i></span><span class="side-link-label">Ajustes</span></a></li>
+                    <li><a class="side-link js-section-link" href="#cfg-security" data-target="cfg-security"><span class="side-link-icon"><i class="fa fa-shield"></i></span><span class="side-link-label">Seguridad control</span></a></li>
                     <li><a class="side-link js-section-link" href="#payment-methods-main" data-target="payment-methods-main"><span class="side-link-icon"><i class="fa fa-credit-card"></i></span><span class="side-link-label">Metodos de pago</span></a></li>
                     <li><a class="side-link js-section-link" href="#cfg-appearance" data-target="cfg-appearance"><span class="side-link-icon"><i class="fa fa-paint-brush"></i></span><span class="side-link-label">Apariencia</span></a></li>
                 </ul>
@@ -1327,6 +1417,7 @@ if (admin_table_exists('support_ticket')) {
                     <a href="<?php echo admin_h($financeMethodsUrl); ?>">Metodos pago</a>
                     <a href="<?php echo admin_h($baseUrl . 'index.php?p=saas-tenants'); ?>">SaaS Tenants</a>
                     <a href="<?php echo admin_h($baseUrl . 'index.php?p=saas-control'); ?>">SaaS Control</a>
+                    <a href="#cfg-security">Seguridad control</a>
                     <a href="<?php echo admin_h($baseUrl . 'index.php?p=supportticket'); ?>">Soporte</a>
                 </div>
             </div>
@@ -1373,6 +1464,75 @@ if (admin_table_exists('support_ticket')) {
                             <input class="cfg-input" id="panel_admin_context_label" name="panel_admin_context_label" value="<?php echo admin_h($panelHeaderContext); ?>" required>
                         </div>
                         <button class="btn btn-primary" type="submit">Guardar configuracion</button>
+                    </form>
+                </div>
+            </div>
+        </section>
+
+        <section class="section section-config admin-panel" id="cfg-security">
+            <h2>Seguridad de control</h2>
+            <p class="section-hint">Reglas globales para <strong><?php echo admin_h($controlSecurityControlHost); ?></strong>: cuentas autorizadas, whitelist por IP real y accesos tecnicos del admin.</p>
+            <?php if ($adminNoticeSuccess !== '' && $adminNoticeScope === 'cfg-security'): ?>
+                <div class="alert alert-ok"><?php echo admin_h($adminNoticeSuccess); ?></div>
+            <?php endif; ?>
+            <?php if ($adminNoticeError !== '' && $adminNoticeScope === 'cfg-security'): ?>
+                <div class="alert alert-err"><?php echo admin_h($adminNoticeError); ?></div>
+            <?php endif; ?>
+
+            <div class="cfg-grid">
+                <div class="cfg-card">
+                    <h3>Host de control y whitelist</h3>
+                    <div class="cfg-help">Host actual: <strong><?php echo admin_h($currentHost); ?></strong> | Host central: <strong><?php echo admin_h($controlSecurityControlHost); ?></strong> | IP real detectada: <strong><?php echo admin_h($controlSecurityCurrentIp); ?></strong> | Contexto: <strong><?php echo $controlSecurityIsHost ? 'control host' : 'host secundario'; ?></strong>.</div>
+                    <form method="post" action="<?php echo admin_h($baseUrl . 'admin.php#cfg-security'); ?>" autocomplete="off">
+                        <input type="hidden" name="save_control_security" value="1">
+                        <div class="cfg-row">
+                            <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+                                <input type="checkbox" name="control_admin_strict_mode" value="1" <?php echo $controlSecuritySettings['strict_mode'] ? 'checked' : ''; ?>>
+                                <span>Activar modo estricto para admin.php en el host de control</span>
+                            </label>
+                            <div class="cfg-help">Cuando esta activo, solo entran cuentas permitidas por ID/email o superadmin segun la regla inferior.</div>
+                        </div>
+                        <div class="cfg-row">
+                            <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+                                <input type="checkbox" name="control_admin_require_superadmin" value="1" <?php echo $controlSecuritySettings['require_superadmin'] ? 'checked' : ''; ?>>
+                                <span>Exigir superadmin/owner como regla base</span>
+                            </label>
+                            <div class="cfg-help">Si lo desactivas, debes definir IDs o emails autorizados en modo estricto.</div>
+                        </div>
+                        <div class="cfg-row">
+                            <label for="control_admin_allowed_user_ids">User IDs autorizados</label>
+                            <input class="cfg-input" id="control_admin_allowed_user_ids" name="control_admin_allowed_user_ids" value="<?php echo admin_h($controlSecuritySettings['allowed_user_ids']); ?>" placeholder="1, 7, 15">
+                            <div class="cfg-help">Lista separada por comas. El user_id 1 suele ser el owner principal.</div>
+                        </div>
+                        <div class="cfg-row">
+                            <label for="control_admin_allowed_emails">Emails autorizados</label>
+                            <input class="cfg-input" id="control_admin_allowed_emails" name="control_admin_allowed_emails" value="<?php echo admin_h($controlSecuritySettings['allowed_emails']); ?>" placeholder="admin@programmit.com, ops@programmit.com">
+                        </div>
+                        <div class="cfg-row">
+                            <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+                                <input type="checkbox" name="control_admin_ip_whitelist_enabled" value="1" <?php echo $controlSecuritySettings['ip_whitelist_enabled'] ? 'checked' : ''; ?>>
+                                <span>Activar whitelist por IP real</span>
+                            </label>
+                            <div class="cfg-help">Se detecta la IP real detras de Nginx Proxy Manager usando cabeceras de proxy con fallback seguro.</div>
+                        </div>
+                        <div class="cfg-row">
+                            <label for="control_admin_ip_whitelist">IPs autorizadas</label>
+                            <textarea class="cfg-input" id="control_admin_ip_whitelist" name="control_admin_ip_whitelist" rows="5" placeholder="104.152.50.156, 186.x.x.x"><?php echo admin_h($controlSecuritySettings['ip_whitelist']); ?></textarea>
+                            <div class="cfg-help">Puedes usar comas, espacios o saltos de linea. Si activas la whitelist, tu IP actual se agrega automaticamente al guardar si todavia no esta.</div>
+                        </div>
+                        <div class="cfg-row">
+                            <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+                                <input type="checkbox" name="control_admin_allow_register" value="1" <?php echo $controlSecuritySettings['allow_register'] ? 'checked' : ''; ?>>
+                                <span>Permitir registro desde el host de control</span>
+                            </label>
+                        </div>
+                        <div class="cfg-row">
+                            <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+                                <input type="checkbox" name="control_admin_allow_magic_login" value="1" <?php echo $controlSecuritySettings['allow_magic_login'] ? 'checked' : ''; ?>>
+                                <span>Permitir magic login en el host de control</span>
+                            </label>
+                        </div>
+                        <button class="btn btn-primary" type="submit">Guardar seguridad de control</button>
                     </form>
                 </div>
             </div>
@@ -1528,6 +1688,70 @@ if (admin_table_exists('support_ticket')) {
             </div>
         </section>
 
+        <section class="section admin-panel" id="server-status-main">
+            <h2>Estado Servidor</h2>
+            <p class="section-hint">Monitoreo legacy y estado operativo de servidores sin salir del admin.</p>
+            <div class="module-embed-wrap">
+                <iframe
+                    id="serverStatusFrame"
+                    class="module-embed-frame"
+                    title="Modulo estado servidor"
+                    src="about:blank"
+                    data-src="<?php echo admin_h($serverStatusEmbedUrl); ?>"
+                    loading="lazy"
+                    scrolling="no"
+                ></iframe>
+            </div>
+        </section>
+
+        <section class="section admin-panel" id="server-update-main">
+            <h2>Actualizacion Servidor</h2>
+            <p class="section-hint">Gestion de actualizaciones y recursos tecnicos dentro del admin central.</p>
+            <div class="module-embed-wrap">
+                <iframe
+                    id="serverUpdateFrame"
+                    class="module-embed-frame"
+                    title="Modulo actualizacion servidor"
+                    src="about:blank"
+                    data-src="<?php echo admin_h($serverUpdateEmbedUrl); ?>"
+                    loading="lazy"
+                    scrolling="no"
+                ></iframe>
+            </div>
+        </section>
+
+        <section class="section admin-panel" id="notice-update-main">
+            <h2>Avisos</h2>
+            <p class="section-hint">Administracion de avisos y publicaciones sin salir del panel admin.</p>
+            <div class="module-embed-wrap">
+                <iframe
+                    id="noticeUpdateFrame"
+                    class="module-embed-frame"
+                    title="Modulo avisos"
+                    src="about:blank"
+                    data-src="<?php echo admin_h($noticeUpdateEmbedUrl); ?>"
+                    loading="lazy"
+                    scrolling="no"
+                ></iframe>
+            </div>
+        </section>
+
+        <section class="section admin-panel" id="credit-logs-main">
+            <h2>Historial de Creditos</h2>
+            <p class="section-hint">Consulta de movimientos y trazabilidad de creditos desde el admin central.</p>
+            <div class="module-embed-wrap">
+                <iframe
+                    id="creditLogsFrame"
+                    class="module-embed-frame"
+                    title="Modulo historial de creditos"
+                    src="about:blank"
+                    data-src="<?php echo admin_h($creditLogsEmbedUrl); ?>"
+                    loading="lazy"
+                    scrolling="no"
+                ></iframe>
+            </div>
+        </section>
+
         <div class="detail-block" id="stats-detail">
         <section class="section">
             <h2>Finanzas, SaaS e Infra</h2>
@@ -1653,6 +1877,8 @@ if (admin_table_exists('support_ticket')) {
                         <tr><th>DB Host</th><td><?php echo admin_h($dbHostLabel !== '' ? $dbHostLabel : 'n/a'); ?></td></tr>
                         <tr><th>DB Name</th><td><?php echo admin_h($dbNameLabel !== '' ? $dbNameLabel : 'n/a'); ?></td></tr>
                         <tr><th>Host</th><td><?php echo admin_h($currentHost); ?></td></tr>
+                        <tr><th>Control Host</th><td><?php echo admin_h($controlSecurityControlHost); ?></td></tr>
+                        <tr><th>Admin IP Real</th><td><?php echo admin_h($controlSecurityCurrentIp); ?></td></tr>
                         <tr><th>Admin User</th><td><?php echo admin_h($user_name_2 . ' (' . $user_level_2 . ')'); ?></td></tr>
                         <tr><th>Generated</th><td><?php echo admin_h($generatedAt); ?></td></tr>
                         <tr><th>Support Tickets</th><td><?php echo admin_h(admin_fmt_int($securityStats['tickets_total']) . ' total / ' . admin_fmt_int($securityStats['tickets_answered']) . ' answered'); ?></td></tr>
@@ -1758,6 +1984,14 @@ if (admin_table_exists('support_ticket')) {
                 targetFrame = financeMethodsFrame;
             } else if (targetId === 'vpn-control-main') {
                 targetFrame = vpnControlFrame;
+            } else if (targetId === 'server-status-main') {
+                targetFrame = serverStatusFrame;
+            } else if (targetId === 'server-update-main') {
+                targetFrame = serverUpdateFrame;
+            } else if (targetId === 'notice-update-main') {
+                targetFrame = noticeUpdateFrame;
+            } else if (targetId === 'credit-logs-main') {
+                targetFrame = creditLogsFrame;
             }
             if (!targetFrame) { return; }
             var nextSrc = (targetFrame.getAttribute('data-src') || '').trim();
@@ -1874,11 +2108,33 @@ if (admin_table_exists('support_ticket')) {
             }
             if (vpnControlFrame && event.source === vpnControlFrame.contentWindow && data.type === 'vpn_embed_height') {
                 applyEmbedFrameHeight(vpnControlFrame, data.height, ['.vpn-embed-shell', '.container-fluid', '.page-content'], 220, 260, 6400);
+                return;
+            }
+            if (data.type === 'programmit_admin_embed_height') {
+                if (serverStatusFrame && event.source === serverStatusFrame.contentWindow) {
+                    applyEmbedFrameHeight(serverStatusFrame, data.height, ['.page-content', '.container-fluid', 'body'], 260, 320, 2600);
+                    return;
+                }
+                if (serverUpdateFrame && event.source === serverUpdateFrame.contentWindow) {
+                    applyEmbedFrameHeight(serverUpdateFrame, data.height, ['.page-content', '.container-fluid', 'body'], 260, 320, 4600);
+                    return;
+                }
+                if (noticeUpdateFrame && event.source === noticeUpdateFrame.contentWindow) {
+                    applyEmbedFrameHeight(noticeUpdateFrame, data.height, ['.page-content', '.container-fluid', 'body'], 260, 320, 4600);
+                    return;
+                }
+                if (creditLogsFrame && event.source === creditLogsFrame.contentWindow) {
+                    applyEmbedFrameHeight(creditLogsFrame, data.height, ['.page-content', '.container-fluid', 'body'], 260, 320, 3600);
+                }
             }
         });
 
         bindEmbedFrame(financeMethodsFrame, 'finance_embed_height', ['.pay-card', '.pay-shell'], 220, 260, 2800);
         bindEmbedFrame(vpnControlFrame, 'vpn_embed_height', ['.vpn-embed-shell', '.container-fluid', '.page-content'], 220, 260, 6400);
+        bindEmbedFrame(serverStatusFrame, 'programmit_admin_embed_height', ['.page-content', '.container-fluid', 'body'], 260, 320, 2600);
+        bindEmbedFrame(serverUpdateFrame, 'programmit_admin_embed_height', ['.page-content', '.container-fluid', 'body'], 260, 320, 4600);
+        bindEmbedFrame(noticeUpdateFrame, 'programmit_admin_embed_height', ['.page-content', '.container-fluid', 'body'], 260, 320, 4600);
+        bindEmbedFrame(creditLogsFrame, 'programmit_admin_embed_height', ['.page-content', '.container-fluid', 'body'], 260, 320, 3600);
 
         function markSectionLink(targetId) {
             sectionLinks.forEach(function (link) {

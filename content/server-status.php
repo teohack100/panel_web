@@ -1,4 +1,22 @@
 <?php
+chkSession();
+
+$embed_raw = isset($_GET['embed']) ? strtolower(trim((string)$_GET['embed'])) : '';
+$server_status_embed_admin = in_array($embed_raw, array('1', 'admin', 'yes'), true);
+$server_status_admin_access = (
+	(int)$user_id_2 === 1 ||
+	$user_level_2 === 'superadmin' ||
+	$user_level_2 === 'administrator' ||
+	$user_level_2 === 'subadmin'
+);
+
+if (!$server_status_embed_admin && $server_status_admin_access) {
+	header("Location: ".$db->base_url()."admin.php#server-status-main");
+	exit;
+}
+
+$smarty->assign("server_status_embed_admin", $server_status_embed_admin ? 1 : 0);
+
 ini_set('max_execution_time', 150); //300 seconds = 5 minutes
 
 if (function_exists('programmit_legacy_server_probes_enabled') && !programmit_legacy_server_probes_enabled()) {

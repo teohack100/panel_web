@@ -279,37 +279,47 @@
             </div>
             {/if}
 
-            {if $panel_can_manage_server_2 == 1 || $panel_restricted_2}
-            <div class="pm-nav-category" data-category="server">
+            {if $user_id_2 == 1 || $user_level_2 == 'superadmin' || $user_level_2 == 'administrator' || $user_level_2 == 'subadmin'}
+            <div class="pm-nav-category" data-category="admin-central">
                 <button class="pm-nav-toggle" type="button">
-                    <span class="pm-nav-icon"><i class="fas fa-server"></i></span>
-                    <span class="pm-nav-copy"><span class="pm-nav-title">GESTION DE SERVIDOR</span></span>
+                    <span class="pm-nav-icon"><i class="fas fa-shield-alt"></i></span>
+                    <span class="pm-nav-copy"><span class="pm-nav-title">ADMIN CENTRAL</span></span>
                     <span class="pm-nav-chevron"><i class="fas fa-chevron-down"></i></span>
                 </button>
                 <div class="pm-nav-body">
                     <ul class="pm-nav-list">
-                        <li><a class="pm-nav-link" data-page="server-status" href="{$base_url}index.php?p=server-status"><i class="ti-server"></i>El estado del servidor</a></li>
-                        <li><a class="pm-nav-link" data-page="vpn-control" href="{$base_url}index.php?p=vpn-control"><i class="ti-layout-grid2"></i>VPN Multi-VPS</a></li>
-                        {if $panel_can_manage_server_sessions_2 == 1 || $panel_restricted_2}
+                        <li><a class="pm-nav-link" data-page="admin-panel" href="{$base_url}admin.php"><i class="ti-dashboard"></i>Dashboard admin</a></li>
+                        <li><a class="pm-nav-link" data-page="admin-vps" href="{$base_url}admin.php#vpn-control-main"><i class="ti-layout-grid2"></i>Operaciones VPS</a></li>
+                    </ul>
+                </div>
+            </div>
+            {/if}
+
+            {if $panel_can_manage_server_sessions_2 == 1 || $panel_restricted_2}
+            <div class="pm-nav-category" data-category="sessions-online">
+                <button class="pm-nav-toggle" type="button">
+                    <span class="pm-nav-icon"><i class="fas fa-signal"></i></span>
+                    <span class="pm-nav-copy"><span class="pm-nav-title">MONITOREO EN LINEA</span></span>
+                    <span class="pm-nav-chevron"><i class="fas fa-chevron-down"></i></span>
+                </button>
+                <div class="pm-nav-body">
+                    <ul class="pm-nav-list">
                         <li><a class="pm-nav-link" data-page="online-users-tcp" href="{$base_url}index.php?p=online-users-tcp"><i class="ti-layers-alt"></i>Usuarios en línea (TCP)</a></li>
                         <li><a class="pm-nav-link" data-page="online-users-udp" href="{$base_url}index.php?p=online-users-udp"><i class="ti-layers-alt"></i>Usuarios en línea (UDP)</a></li>
-                        {/if}
                     </ul>
                 </div>
             </div>
             {/if}
 
             {if $panel_can_manage_panels_2 == 1 || $panel_restricted_2}
-            <div class="pm-nav-category" data-category="panels">
+            <div class="pm-nav-category" data-category="updaters">
                 <button class="pm-nav-toggle" type="button">
                     <span class="pm-nav-icon"><i class="fas fa-cogs"></i></span>
-                    <span class="pm-nav-copy"><span class="pm-nav-title">GESTION DE PANELES</span></span>
+                    <span class="pm-nav-copy"><span class="pm-nav-title">ACTUALIZADORES</span></span>
                     <span class="pm-nav-chevron"><i class="fas fa-chevron-down"></i></span>
                 </button>
                 <div class="pm-nav-body">
                     <ul class="pm-nav-list">
-                        <li><a class="pm-nav-link" data-page="server-update" href="{$base_url}index.php?p=server-update"><i class="ti-harddrives"></i>Actualización del servidor</a></li>
-                        <li><a class="pm-nav-link" data-page="notice-update" href="{$base_url}index.php?p=notice-update"><i class="ti-pencil-alt"></i>Actualización de aviso</a></li>
                         <li><a class="pm-nav-link" data-page="updater-v1" href="{$base_url}index.php?p=updater-v1"><i class="ti-marker-alt"></i>Updater #1</a></li>
                         <li><a class="pm-nav-link" data-page="updater-v2" href="{$base_url}index.php?p=updater-v2"><i class="ti-marker-alt"></i>Updater #2</a></li>
                         <li><a class="pm-nav-link" data-page="updater-v3" href="{$base_url}index.php?p=updater-v3"><i class="ti-marker-alt"></i>Updater #3</a></li>
