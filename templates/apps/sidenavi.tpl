@@ -279,22 +279,6 @@
             </div>
             {/if}
 
-            {if $user_id_2 == 1 || $user_level_2 == 'superadmin' || $user_level_2 == 'administrator' || $user_level_2 == 'subadmin'}
-            <div class="pm-nav-category" data-category="admin-central">
-                <button class="pm-nav-toggle" type="button">
-                    <span class="pm-nav-icon"><i class="fas fa-shield-alt"></i></span>
-                    <span class="pm-nav-copy"><span class="pm-nav-title">ADMIN CENTRAL</span></span>
-                    <span class="pm-nav-chevron"><i class="fas fa-chevron-down"></i></span>
-                </button>
-                <div class="pm-nav-body">
-                    <ul class="pm-nav-list">
-                        <li><a class="pm-nav-link" data-page="admin-panel" href="{$base_url}admin.php"><i class="ti-dashboard"></i>Dashboard admin</a></li>
-                        <li><a class="pm-nav-link" data-page="admin-vps" href="{$base_url}admin.php#vpn-control-main"><i class="ti-layout-grid2"></i>Operaciones VPS</a></li>
-                    </ul>
-                </div>
-            </div>
-            {/if}
-
             {if $panel_can_manage_server_sessions_2 == 1 || $panel_restricted_2}
             <div class="pm-nav-category" data-category="sessions-online">
                 <button class="pm-nav-toggle" type="button">
