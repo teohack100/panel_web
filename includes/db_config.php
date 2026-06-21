@@ -17,6 +17,23 @@ if (!function_exists('programmit_env_get')) {
 	}
 }
 
+if (!function_exists('programmit_env_is_truthy')) {
+	function programmit_env_is_truthy($value) {
+		$value = strtolower(trim((string)$value));
+		return in_array($value, array('1', 'true', 'yes', 'on', 'enabled'), true);
+	}
+}
+
+if (!function_exists('programmit_legacy_server_probes_enabled')) {
+	function programmit_legacy_server_probes_enabled() {
+		$raw = trim((string)programmit_env_get('LEGACY_SERVER_PROBES_ENABLED'));
+		if ($raw === '') {
+			return true;
+		}
+		return programmit_env_is_truthy($raw);
+	}
+}
+
 if (!function_exists('programmit_load_env_file')) {
 	function programmit_load_env_file($path, $override = false) {
 		if (!is_file($path) || !is_readable($path)) {

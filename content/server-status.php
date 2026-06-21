@@ -1,5 +1,17 @@
 <?php
 ini_set('max_execution_time', 150); //300 seconds = 5 minutes
+
+if (function_exists('programmit_legacy_server_probes_enabled') && !programmit_legacy_server_probes_enabled()) {
+	$legacy_notice = '<tr><td class="text-center" colspan="3">Monitoreo legacy desactivado por configuracion.</td></tr>';
+	$smarty->assign("server", array($legacy_notice));
+	$smarty->assign("premium_parser", $legacy_notice);
+	$smarty->assign("vip_parser", $legacy_notice);
+	$smarty->assign("private_parser", $legacy_notice);
+	$smarty->assign("free_parser", $legacy_notice);
+	$smarty->display("server-status.tpl");
+	return;
+}
+
 $premium_parser = '';
 $premium = $mysqli->query("SELECT * FROM server_list WHERE server_category = 'premium' ORDER BY server_name ASC");
 while($premium_row = $premium->fetch_assoc())
@@ -81,4 +93,3 @@ while($free_row = $free->fetch_assoc())
 }
 $smarty->display("server-status.tpl");
 ?>
-

@@ -2,6 +2,11 @@
 error_reporting(E_ALL);
 ini_set('display_errors', '1');
 require_once 'config.php';
+
+if (function_exists('programmit_legacy_server_probes_enabled') && !programmit_legacy_server_probes_enabled()) {
+	return;
+}
+
 $ip = $db->get_client_ip();
 if($db->get_client_ip() == 'UNKNOWN'){
 	$premium = $db->sql_query("SELECT * FROM server_list WHERE server_category = 'premium' ORDER BY server_name ASC");

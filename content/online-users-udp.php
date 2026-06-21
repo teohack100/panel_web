@@ -7,6 +7,14 @@ if($user_id_2 == 1 || $user_level_2 == 'superadmin' || $user_level_2 == 'adminis
 }
 ini_set('max_execution_time', 150); //300 seconds = 5 minutes			
 $stats = '';
+
+if (function_exists('programmit_legacy_server_probes_enabled') && !programmit_legacy_server_probes_enabled()) {
+	$stats = '<tr><td class="text-center" colspan="6">Monitoreo legacy desactivado por configuracion.</td></tr>';
+	$smarty->assign("stats", $stats);
+	$smarty->display("online-users-udp.tpl");
+	return;
+}
+
 $query = $db->sql_query("SELECT * FROM server_list WHERE status=1 ORDER BY server_name ASC");
 while($row = $db->sql_fetchrow($query))
 {
