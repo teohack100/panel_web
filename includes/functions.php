@@ -12,25 +12,45 @@ if (!function_exists('each')) {
 		return array(1 => $value, 'value' => $value, 0 => $key, 'key' => $key);
 	}
 }
-$user = isset($_COOKIE['user']) ? $_COOKIE['user'] : '';
-if (!empty($_SERVER['HTTP_COOKIE'])) {
-	$cookieParts = explode(';', $_SERVER['HTTP_COOKIE']);
-	$lastUserCookie = '';
-	foreach ($cookieParts as $cookiePart) {
-		$cookiePart = trim($cookiePart);
-		if (stripos($cookiePart, 'user=') === 0) {
-			$lastUserCookie = rawurldecode(substr($cookiePart, 5));
-		}
+function programmit_normalize_user_cookie_value($rawValue) {
+	global $db;
+	$rawValue = trim((string)$rawValue);
+	if ($rawValue === '') {
+		return '';
 	}
-	if ($lastUserCookie !== '') {
-		$user = $lastUserCookie;
+	$decoded = $db->decrypt_key($rawValue);
+	if (!is_string($decoded) || $decoded === '') {
+		return '';
 	}
+	$decoded = addslashes($decoded);
+	return $db->encrypt_key($decoded);
 }
 
-if(!empty($user)){
-	$user = $db->decrypt_key($user);
-	$user = addslashes($user);
-	$user = $db->encrypt_key($user);
+function programmit_collect_user_cookie_candidates() {
+	$candidates = array();
+	if (isset($_COOKIE['user']) && trim((string)$_COOKIE['user']) !== '') {
+		$candidates[] = (string)$_COOKIE['user'];
+	}
+	if (!empty($_SERVER['HTTP_COOKIE'])) {
+		$cookieParts = explode(';', (string)$_SERVER['HTTP_COOKIE']);
+		foreach ($cookieParts as $cookiePart) {
+			$cookiePart = trim((string)$cookiePart);
+			if (stripos($cookiePart, 'user=') === 0) {
+				$candidates[] = rawurldecode(substr($cookiePart, 5));
+			}
+		}
+	}
+	return array_values(array_unique(array_filter($candidates, 'strlen')));
+}
+
+$programmit_user_cookie_candidates = programmit_collect_user_cookie_candidates();
+$user = '';
+foreach ($programmit_user_cookie_candidates as $_userCookieCandidate) {
+	$_normalizedUserCookie = programmit_normalize_user_cookie_value($_userCookieCandidate);
+	if ($_normalizedUserCookie !== '') {
+		$user = $_normalizedUserCookie;
+		break;
+	}
 }
 
 function clear_auth_cookies() {
@@ -109,6 +129,19 @@ function is_logged_in($user) {
 	$result = $db->sql_query("SELECT user_id FROM users WHERE user_id='$user_id' AND user_name='$user_name' AND user_pass='$user_pass' LIMIT 1");
 	$cache[$user] = ($result && $db->sql_numrows($result) > 0) ? 1 : 0;
 	return (int)$cache[$user];
+}
+
+if (!empty($programmit_user_cookie_candidates)) {
+	foreach ($programmit_user_cookie_candidates as $_userCookieCandidate) {
+		$_normalizedUserCookie = programmit_normalize_user_cookie_value($_userCookieCandidate);
+		if ($_normalizedUserCookie === '') {
+			continue;
+		}
+		if (is_logged_in($_normalizedUserCookie)) {
+			$user = $_normalizedUserCookie;
+			break;
+		}
+	}
 }
 global $user, $db;
 $user_id_2 = 0;
