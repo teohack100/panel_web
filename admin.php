@@ -276,7 +276,8 @@ $noticeUpdateEmbedUrl = "index.php?p=notice-update&embed=admin";
 $creditLogsEmbedUrl = "index.php?p=credit-logs&embed=admin";
 $financeMethodsUrl = $baseUrl . "index.php?p=finance-methods&tab=methods";
 $financeMethodsEmbedUrl = "index.php?p=finance-methods&tab=methods&embed=admin";
-$vpnControlEmbedUrl = "index.php?p=vpn-control&embed=admin";
+$vpnCreateEmbedUrl = "index.php?p=vpn-control&embed=admin&vpn_view=create-server";
+$vpnManageEmbedUrl = "index.php?p=vpn-control&embed=admin&vpn_view=manage-servers";
 $currentHost = function_exists('programmit_saas_current_host') ? (string)programmit_saas_current_host() : (string)(isset($_SERVER['HTTP_HOST']) ? $_SERVER['HTTP_HOST'] : '');
 $today = date('Y-m-d');
 $generatedAt = date('Y-m-d H:i:s');
@@ -801,7 +802,8 @@ if (admin_table_exists('support_ticket')) {
             font-weight: 600;
             border-left: 3px solid transparent;
             padding: 10px 14px 10px 16px;
-            transition: background .14s ease, border-color .14s ease;
+            position: relative;
+            transition: background .14s ease, border-color .14s ease, box-shadow .14s ease;
         }
         .side-link-icon {
             width: 16px;
@@ -824,11 +826,28 @@ if (admin_table_exists('support_ticket')) {
         .side-link.active .side-link-icon {
             color: #e5f1ff;
         }
-        .side-link:hover { background: rgba(45, 88, 143, .24); border-left-color: #5387d1; color: #fff; }
+        .side-link:hover:not(.active) {
+            background: rgba(32, 63, 102, .18);
+            border-left-color: rgba(83, 135, 209, .42);
+            color: #fff;
+        }
         .side-link.active {
             color: #fff;
-            background: linear-gradient(90deg, rgba(53, 126, 235, .34) 0%, rgba(45, 88, 143, .20) 100%);
+            background: linear-gradient(90deg, rgba(53, 126, 235, .40) 0%, rgba(45, 88, 143, .26) 100%);
             border-left-color: #6bb6ff;
+            box-shadow: inset 0 0 0 1px rgba(107, 182, 255, .12);
+        }
+        .side-link.active::after {
+            content: "";
+            position: absolute;
+            right: 12px;
+            top: 50%;
+            width: 7px;
+            height: 7px;
+            border-radius: 999px;
+            transform: translateY(-50%);
+            background: #8ed0ff;
+            box-shadow: 0 0 0 4px rgba(142, 208, 255, .14);
         }
         .side-link-danger {
             color: #f87f91;
@@ -1280,8 +1299,8 @@ if (admin_table_exists('support_ticket')) {
             .grid-3 { grid-template-columns: 1fr; }
             .cfg-grid { grid-template-columns: 1fr; }
         }
-        @media (max-width: 980px) {
-            :root { --content-min-width: 980px; }
+        @media (max-width: 860px) {
+            :root { --content-min-width: 860px; }
             .side {
                 width: min(84vw, var(--drawer-width));
                 max-width: 88vw;
@@ -1301,6 +1320,7 @@ if (admin_table_exists('support_ticket')) {
             .topbar-brand-sub { font-size: 12px; }
             .topbar-context { font-size: 12px; }
             .wrap { width: 100%; margin: 0; }
+            .wrap.drawer-open { margin-left: 0; width: 100%; }
             .wrap-inner { padding: 10px; }
         }
         @media (max-width: 700px) {
@@ -1351,9 +1371,9 @@ if (admin_table_exists('support_ticket')) {
             <div class="side-group">
                 <p class="side-title">Operaciones</p>
                 <ul class="side-links">
-                    <li><a class="side-link js-section-link" href="#vpn-control-main" data-target="vpn-control-main"><span class="side-link-icon"><i class="fa fa-plus-circle"></i></span><span class="side-link-label">Agregar servidor</span></a></li>
+                    <li><a class="side-link js-section-link" href="#vpn-create-main" data-target="vpn-create-main"><span class="side-link-icon"><i class="fa fa-plus-circle"></i></span><span class="side-link-label">Agregar servidor</span></a></li>
                     <li><a class="side-link js-section-link" href="#server-status-main" data-target="server-status-main"><span class="side-link-icon"><i class="fa fa-server"></i></span><span class="side-link-label">Estado servidor</span></a></li>
-                    <li><a class="side-link js-section-link" href="#vpn-control-main" data-target="vpn-control-main"><span class="side-link-icon"><i class="fa fa-random"></i></span><span class="side-link-label">Gestion VPS</span></a></li>
+                    <li><a class="side-link js-section-link" href="#vpn-manage-main" data-target="vpn-manage-main"><span class="side-link-icon"><i class="fa fa-random"></i></span><span class="side-link-label">Gestion VPS</span></a></li>
                     <li><a class="side-link js-section-link" href="#server-update-main" data-target="server-update-main"><span class="side-link-icon"><i class="fa fa-refresh"></i></span><span class="side-link-label">Actualizacion servidor</span></a></li>
                     <li><a class="side-link js-section-link" href="#notice-update-main" data-target="notice-update-main"><span class="side-link-icon"><i class="fa fa-bullhorn"></i></span><span class="side-link-label">Avisos</span></a></li>
                     <li><a class="side-link js-section-link" href="#ops-client-defaults" data-target="ops-client-defaults"><span class="side-link-icon"><i class="fa fa-key"></i></span><span class="side-link-label">Clave general clientes</span></a></li>
@@ -1672,16 +1692,32 @@ if (admin_table_exists('support_ticket')) {
             </div>
         </section>
 
-        <section class="section admin-panel" id="vpn-control-main">
-            <h2>VPN Multi-VPS</h2>
-            <p class="section-hint">Gestion directa de VPS y sincronizacion dentro del panel administrativo.</p>
+        <section class="section admin-panel" id="vpn-create-main">
+            <h2>Agregar Servidor</h2>
+            <p class="section-hint">Alta enfocada de una nueva VPS o IP dentro del control central.</p>
             <div class="module-embed-wrap">
                 <iframe
-                    id="vpnControlFrame"
+                    id="vpnCreateFrame"
                     class="module-embed-frame"
-                    title="Modulo VPN Multi-VPS"
+                    title="Modulo alta de servidor"
                     src="about:blank"
-                    data-src="<?php echo admin_h($vpnControlEmbedUrl); ?>"
+                    data-src="<?php echo admin_h($vpnCreateEmbedUrl); ?>"
+                    loading="lazy"
+                    scrolling="no"
+                ></iframe>
+            </div>
+        </section>
+
+        <section class="section admin-panel" id="vpn-manage-main">
+            <h2>Gestion VPS</h2>
+            <p class="section-hint">Administracion completa de VPS, relaciones, sync y despliegues.</p>
+            <div class="module-embed-wrap">
+                <iframe
+                    id="vpnManageFrame"
+                    class="module-embed-frame"
+                    title="Modulo gestion VPS"
+                    src="about:blank"
+                    data-src="<?php echo admin_h($vpnManageEmbedUrl); ?>"
                     loading="lazy"
                     scrolling="no"
                 ></iframe>
@@ -1934,9 +1970,33 @@ if (admin_table_exists('support_ticket')) {
         var statsDetailToggle = document.getElementById('statsDetailToggle');
         var statsDetailToggleRow = statsDetailToggle ? statsDetailToggle.parentElement : null;
         var financeMethodsFrame = document.getElementById('financeMethodsFrame');
-        var vpnControlFrame = document.getElementById('vpnControlFrame');
+        var vpnCreateFrame = document.getElementById('vpnCreateFrame');
+        var vpnManageFrame = document.getElementById('vpnManageFrame');
+        var serverStatusFrame = document.getElementById('serverStatusFrame');
+        var serverUpdateFrame = document.getElementById('serverUpdateFrame');
+        var noticeUpdateFrame = document.getElementById('noticeUpdateFrame');
+        var creditLogsFrame = document.getElementById('creditLogsFrame');
         var activeTarget = 'dashboard-main';
+        var drawerStateKey = 'programmit_admin_drawer_state_v1';
         if (!side || !overlay || !toggle || !contentWrap || !mainScroll) { return; }
+
+        function readDrawerState() {
+            try {
+                return (window.localStorage && localStorage.getItem(drawerStateKey)) || '';
+            } catch (err) {
+                return '';
+            }
+        }
+
+        function writeDrawerState(state) {
+            try {
+                if (window.localStorage) {
+                    localStorage.setItem(drawerStateKey, state);
+                }
+            } catch (err) {
+                // ignore storage issues
+            }
+        }
 
         function syncDrawerTop() {
             if (!headerStack) { return; }
@@ -1949,15 +2009,21 @@ if (admin_table_exists('support_ticket')) {
             }
         }
 
-        function closeSide() {
+        function closeSide(persistState) {
             side.classList.remove('open');
             overlay.classList.remove('open');
             contentWrap.classList.remove('drawer-open');
+            if (persistState !== false) {
+                writeDrawerState('closed');
+            }
         }
-        function openSide() {
+        function openSide(persistState) {
             side.classList.add('open');
             overlay.classList.add('open');
             contentWrap.classList.add('drawer-open');
+            if (persistState !== false) {
+                writeDrawerState('open');
+            }
         }
 
         function setStatsDetailOpen(opened) {
@@ -1982,8 +2048,10 @@ if (admin_table_exists('support_ticket')) {
             var targetFrame = null;
             if (targetId === 'payment-methods-main') {
                 targetFrame = financeMethodsFrame;
-            } else if (targetId === 'vpn-control-main') {
-                targetFrame = vpnControlFrame;
+            } else if (targetId === 'vpn-create-main') {
+                targetFrame = vpnCreateFrame;
+            } else if (targetId === 'vpn-manage-main' || targetId === 'vpn-control-main') {
+                targetFrame = vpnManageFrame;
             } else if (targetId === 'server-status-main') {
                 targetFrame = serverStatusFrame;
             } else if (targetId === 'server-update-main') {
@@ -2013,7 +2081,7 @@ if (admin_table_exists('support_ticket')) {
 
             activeTarget = targetId;
             ensureEmbedLoaded(targetId);
-            markSectionLink(targetId);
+            markSectionLink(targetId, opts && opts.activeLink ? opts.activeLink : null);
             if (mainScroll && typeof mainScroll.scrollTo === 'function') {
                 mainScroll.scrollTo({ top: 0, left: 0, behavior: 'auto' });
             } else {
@@ -2106,8 +2174,12 @@ if (admin_table_exists('support_ticket')) {
                 applyEmbedFrameHeight(financeMethodsFrame, data.height, ['.pay-card', '.pay-shell'], 220, 260, 2800);
                 return;
             }
-            if (vpnControlFrame && event.source === vpnControlFrame.contentWindow && data.type === 'vpn_embed_height') {
-                applyEmbedFrameHeight(vpnControlFrame, data.height, ['.vpn-embed-shell', '.container-fluid', '.page-content'], 220, 260, 6400);
+            if (vpnCreateFrame && event.source === vpnCreateFrame.contentWindow && data.type === 'vpn_embed_height') {
+                applyEmbedFrameHeight(vpnCreateFrame, data.height, ['.vpn-embed-shell', '.container-fluid', '.page-content'], 220, 260, 6400);
+                return;
+            }
+            if (vpnManageFrame && event.source === vpnManageFrame.contentWindow && data.type === 'vpn_embed_height') {
+                applyEmbedFrameHeight(vpnManageFrame, data.height, ['.vpn-embed-shell', '.container-fluid', '.page-content'], 220, 260, 6400);
                 return;
             }
             if (data.type === 'programmit_admin_embed_height') {
@@ -2130,20 +2202,29 @@ if (admin_table_exists('support_ticket')) {
         });
 
         bindEmbedFrame(financeMethodsFrame, 'finance_embed_height', ['.pay-card', '.pay-shell'], 220, 260, 2800);
-        bindEmbedFrame(vpnControlFrame, 'vpn_embed_height', ['.vpn-embed-shell', '.container-fluid', '.page-content'], 220, 260, 6400);
+        bindEmbedFrame(vpnCreateFrame, 'vpn_embed_height', ['.vpn-embed-shell', '.container-fluid', '.page-content'], 220, 260, 6400);
+        bindEmbedFrame(vpnManageFrame, 'vpn_embed_height', ['.vpn-embed-shell', '.container-fluid', '.page-content'], 220, 260, 6400);
         bindEmbedFrame(serverStatusFrame, 'programmit_admin_embed_height', ['.page-content', '.container-fluid', 'body'], 260, 320, 2600);
         bindEmbedFrame(serverUpdateFrame, 'programmit_admin_embed_height', ['.page-content', '.container-fluid', 'body'], 260, 320, 4600);
         bindEmbedFrame(noticeUpdateFrame, 'programmit_admin_embed_height', ['.page-content', '.container-fluid', 'body'], 260, 320, 4600);
         bindEmbedFrame(creditLogsFrame, 'programmit_admin_embed_height', ['.page-content', '.container-fluid', 'body'], 260, 320, 3600);
 
-        function markSectionLink(targetId) {
+        function markSectionLink(targetId, preferredLink) {
+            var matchedOne = false;
             sectionLinks.forEach(function (link) {
                 var match = (link.getAttribute('data-target') || '') === targetId;
+                var shouldActivate = false;
                 if (match) {
-                    link.classList.add('active');
-                } else {
-                    link.classList.remove('active');
+                    if (preferredLink && link === preferredLink) {
+                        shouldActivate = true;
+                    } else if (!preferredLink && !matchedOne) {
+                        shouldActivate = true;
+                    }
                 }
+                if (shouldActivate) {
+                    matchedOne = true;
+                }
+                link.classList.toggle('active', shouldActivate);
             });
         }
 
@@ -2161,7 +2242,7 @@ if (admin_table_exists('support_ticket')) {
                 var targetId = (link.getAttribute('data-target') || '').trim();
                 if (targetId === '') { return; }
                 var openDetail = (link.getAttribute('data-open-detail') || '') === '1';
-                activateSection(targetId, { openDetail: openDetail });
+                activateSection(targetId, { openDetail: openDetail, activeLink: link });
             });
         });
         if (statsDetailToggle) {
@@ -2175,6 +2256,9 @@ if (admin_table_exists('support_ticket')) {
         var hasInitialView = false;
         if (window.location.hash) {
             var hashTarget = window.location.hash.replace('#', '').trim();
+            if (hashTarget === 'vpn-control-main') {
+                hashTarget = 'vpn-manage-main';
+            }
             if (hashTarget !== '') {
                 hasInitialView = activateSection(hashTarget, { openDetail: hashTarget === 'stats-main' });
             }
@@ -2183,16 +2267,20 @@ if (admin_table_exists('support_ticket')) {
             activateSection('dashboard-main', { openDetail: false });
         }
         syncDrawerTop();
-        if (window.innerWidth <= 980) {
-            closeSide();
+        var initialDrawerState = readDrawerState();
+        if (initialDrawerState === 'open') {
+            openSide(false);
+        } else if (initialDrawerState === 'closed') {
+            closeSide(false);
+        } else if (window.innerWidth > 860) {
+            openSide(false);
+        } else {
+            closeSide(false);
         }
         window.addEventListener('load', syncDrawerTop);
         setTimeout(syncDrawerTop, 120);
         window.addEventListener('resize', function () {
             syncDrawerTop();
-            if (window.innerWidth > 980) {
-                closeSide();
-            }
         });
 
         Array.prototype.slice.call(document.querySelectorAll('.js-password-toggle')).forEach(function (button) {

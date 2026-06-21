@@ -31,6 +31,32 @@ function programmit_vpn_normalize_host($host) {
     return strtolower(trim((string)$host));
 }
 
+function programmit_vpn_is_host_like($value) {
+    $value = programmit_vpn_normalize_host($value);
+    if ($value === '') {
+        return false;
+    }
+    if (programmit_vpn_is_ip($value)) {
+        return true;
+    }
+    if (strlen($value) > 191 || strpos($value, '..') !== false) {
+        return false;
+    }
+    return (bool)preg_match('/^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/i', $value);
+}
+
+function programmit_vpn_is_http_url($value) {
+    $value = trim((string)$value);
+    if ($value === '') {
+        return false;
+    }
+    if (!filter_var($value, FILTER_VALIDATE_URL)) {
+        return false;
+    }
+    $scheme = strtolower((string)parse_url($value, PHP_URL_SCHEME));
+    return in_array($scheme, array('http', 'https'), true);
+}
+
 function programmit_vpn_json_decode($raw) {
     $raw = trim((string)$raw);
     if ($raw === '') {
@@ -41,6 +67,15 @@ function programmit_vpn_json_decode($raw) {
         return array();
     }
     return $arr;
+}
+
+function programmit_vpn_json_is_valid($raw) {
+    $raw = trim((string)$raw);
+    if ($raw === '') {
+        return true;
+    }
+    json_decode($raw, true);
+    return json_last_error() === JSON_ERROR_NONE;
 }
 
 function programmit_vpn_json_encode($arr) {
@@ -66,6 +101,515 @@ function programmit_vpn_value_string($value, $maxLen = 255) {
         $value = substr($value, 0, $maxLen);
     }
     return trim((string)$value);
+}
+
+function programmit_vpn_secret_encrypt($db, $plainValue) {
+    $plainValue = (string)$plainValue;
+    if ($plainValue === '') {
+        return '';
+    }
+    if (!is_object($db) || !method_exists($db, 'encryptor') || !method_exists($db, 'encrypt_key')) {
+        return '';
+    }
+    return (string)$db->encrypt_key($db->encryptor('encrypt', $plainValue));
+}
+
+function programmit_vpn_secret_decrypt($db, $cipherValue) {
+    $cipherValue = trim((string)$cipherValue);
+    if ($cipherValue === '') {
+        return '';
+    }
+    if (!is_object($db) || !method_exists($db, 'decrypt_key') || !method_exists($db, 'encryptor')) {
+        return '';
+    }
+    $decrypted = (string)$db->decrypt_key($cipherValue);
+    if ($decrypted === '') {
+        return '';
+    }
+    return (string)$db->encryptor('decrypt', $decrypted);
+}
+
+function programmit_vpn_disabled_functions() {
+    $raw = trim((string)ini_get('disable_functions'));
+    if ($raw === '') {
+        return array();
+    }
+    $out = array();
+    foreach (explode(',', $raw) as $item) {
+        $name = strtolower(trim((string)$item));
+        if ($name !== '') {
+            $out[$name] = true;
+        }
+    }
+    return $out;
+}
+
+function programmit_vpn_function_allowed($functionName) {
+    $functionName = strtolower(trim((string)$functionName));
+    if ($functionName === '' || !function_exists($functionName)) {
+        return false;
+    }
+    $disabled = programmit_vpn_disabled_functions();
+    return !isset($disabled[$functionName]);
+}
+
+function programmit_vpn_local_command_run($command, &$stdout, &$stderr, &$exitCode) {
+    $stdout = '';
+    $stderr = '';
+    $exitCode = 1;
+
+    if (!programmit_vpn_function_allowed('proc_open')) {
+        $stderr = 'proc_open no disponible en PHP.';
+        return false;
+    }
+
+    $descriptors = array(
+        0 => array('pipe', 'r'),
+        1 => array('pipe', 'w'),
+        2 => array('pipe', 'w')
+    );
+
+    $process = @proc_open((string)$command, $descriptors, $pipes);
+    if (!is_resource($process)) {
+        $stderr = 'No se pudo iniciar el proceso local.';
+        return false;
+    }
+
+    fclose($pipes[0]);
+    $stdout = stream_get_contents($pipes[1]);
+    fclose($pipes[1]);
+    $stderr = stream_get_contents($pipes[2]);
+    fclose($pipes[2]);
+    $exitCode = (int)proc_close($process);
+    return ($exitCode === 0);
+}
+
+function programmit_vpn_command_available($commandName) {
+    $commandName = trim((string)$commandName);
+    if ($commandName === '') {
+        return false;
+    }
+    $stdout = '';
+    $stderr = '';
+    $exitCode = 1;
+    $finder = (DIRECTORY_SEPARATOR === '\\') ? ('where ' . escapeshellarg($commandName)) : ('command -v ' . escapeshellarg($commandName));
+    if (DIRECTORY_SEPARATOR !== '\\') {
+        $finder = 'sh -lc ' . escapeshellarg($finder);
+    }
+    if (!programmit_vpn_local_command_run($finder, $stdout, $stderr, $exitCode)) {
+        return false;
+    }
+    return trim((string)$stdout) !== '';
+}
+
+function programmit_vpn_remote_password_ssh_supported(&$reason) {
+    $reason = '';
+    if (DIRECTORY_SEPARATOR === '\\') {
+        $reason = 'La ejecución SSH automática por contraseña está pensada para el servidor Linux del panel.';
+        return false;
+    }
+    if (!programmit_vpn_command_available('ssh')) {
+        $reason = 'No se encontró el binario ssh en el servidor del panel.';
+        return false;
+    }
+    if (!programmit_vpn_command_available('sshpass')) {
+        $reason = 'No se encontró sshpass en el servidor del panel.';
+        return false;
+    }
+    return true;
+}
+
+function programmit_vpn_remote_exec_environment() {
+    $reason = '';
+    $supported = programmit_vpn_remote_password_ssh_supported($reason);
+    $isWindows = (DIRECTORY_SEPARATOR === '\\');
+    $isLinux = !$isWindows;
+
+    if ($supported) {
+        return array(
+            'code' => 'linux-ready',
+            'class' => 'ok',
+            'label' => 'Automatización activa',
+            'title' => 'Este panel puede ejecutar SSH remoto',
+            'summary' => 'La prueba SSH y la activación automática del nodo están disponibles en este entorno.',
+            'next_step' => 'Ya puedes guardar, probar y activar nodos con un clic desde el admin.',
+            'supported' => true
+        );
+    }
+
+    if ($isWindows) {
+        return array(
+            'code' => 'windows-local',
+            'class' => 'warn',
+            'label' => 'Modo local',
+            'title' => 'Este entorno es de preparación',
+            'summary' => $reason !== '' ? $reason : 'La automatización remota no está disponible en Windows/XAMPP.',
+            'next_step' => 'Aquí preparas nodos, SSH y token. La activación real se ejecuta desde el panel Linux del VPS.',
+            'supported' => false
+        );
+    }
+
+    if ($isLinux) {
+        return array(
+            'code' => 'linux-partial',
+            'class' => 'warn',
+            'label' => 'Modo parcial',
+            'title' => 'El panel está en Linux pero le faltan dependencias',
+            'summary' => $reason !== '' ? $reason : 'Falta completar dependencias para SSH remoto.',
+            'next_step' => 'Instala sshpass y vuelve a probar para activar la automatización desde el admin.',
+            'supported' => false
+        );
+    }
+
+    return array(
+        'code' => 'unknown',
+        'class' => 'warn',
+        'label' => 'Modo no detectado',
+        'title' => 'No se pudo detectar el entorno',
+        'summary' => $reason !== '' ? $reason : 'La automatización remota no está disponible.',
+        'next_step' => 'Verifica el entorno del panel antes de ejecutar acciones remotas.',
+        'supported' => false
+    );
+}
+
+function programmit_vpn_remote_password_ssh_exec($host, $port, $user, $password, $remoteCommand, &$stdout, &$stderr, &$exitCode, &$reason) {
+    $stdout = '';
+    $stderr = '';
+    $exitCode = 1;
+    $reason = '';
+
+    $host = trim((string)$host);
+    $user = trim((string)$user);
+    $password = (string)$password;
+    $port = (int)$port;
+    if ($port <= 0) {
+        $port = 22;
+    }
+    if ($host === '' || $user === '' || $password === '') {
+        $reason = 'Faltan datos SSH para la ejecución remota.';
+        return false;
+    }
+    if (!programmit_vpn_remote_password_ssh_supported($reason)) {
+        return false;
+    }
+
+    $sshOptions = array(
+        '-o BatchMode=no',
+        '-o StrictHostKeyChecking=no',
+        '-o UserKnownHostsFile=/dev/null',
+        '-o ConnectTimeout=15',
+        '-p ' . (int)$port
+    );
+    $remoteShellCommand = 'bash -lc ' . escapeshellarg((string)$remoteCommand);
+    $command = 'sshpass -p ' . escapeshellarg($password)
+        . ' ssh ' . implode(' ', $sshOptions)
+        . ' ' . escapeshellarg($user . '@' . $host)
+        . ' ' . escapeshellarg($remoteShellCommand);
+
+    $ok = programmit_vpn_local_command_run($command, $stdout, $stderr, $exitCode);
+    if (!$ok && $reason === '') {
+        $reason = trim((string)$stderr) !== '' ? trim((string)$stderr) : 'La conexión SSH remota devolvió error.';
+    }
+    return $ok;
+}
+
+function programmit_vpn_project_root_path() {
+    return dirname(__DIR__);
+}
+
+function programmit_vpn_local_text_file_read($path) {
+    $path = trim((string)$path);
+    if ($path === '' || !is_file($path) || !is_readable($path)) {
+        return '';
+    }
+    $raw = @file_get_contents($path);
+    if (!is_string($raw) || $raw === '') {
+        return '';
+    }
+    return str_replace(array("\r\n", "\r"), "\n", $raw);
+}
+
+function programmit_vpn_server_meta_array($serverRow) {
+    if (is_array($serverRow) && isset($serverRow['meta']) && is_array($serverRow['meta'])) {
+        return $serverRow['meta'];
+    }
+    if (!is_array($serverRow)) {
+        return array();
+    }
+    return programmit_vpn_json_decode(isset($serverRow['meta_json']) ? $serverRow['meta_json'] : '');
+}
+
+function programmit_vpn_server_target_host($serverRow) {
+    if (!is_array($serverRow)) {
+        return '';
+    }
+    $host = trim((string)(isset($serverRow['server_host']) ? $serverRow['server_host'] : ''));
+    if ($host !== '') {
+        return $host;
+    }
+    $ip = trim((string)(isset($serverRow['server_ip']) ? $serverRow['server_ip'] : ''));
+    if ($ip !== '') {
+        return $ip;
+    }
+    return '';
+}
+
+function programmit_vpn_server_plain_ssh_password($db, $serverRow) {
+    $meta = programmit_vpn_server_meta_array($serverRow);
+    $control = (isset($meta['control_access']) && is_array($meta['control_access']))
+        ? $meta['control_access']
+        : array();
+    return programmit_vpn_secret_decrypt($db, isset($control['ssh_password_enc']) ? $control['ssh_password_enc'] : '');
+}
+
+function programmit_vpn_server_plain_sync_token($db, $serverRow) {
+    $meta = programmit_vpn_server_meta_array($serverRow);
+    $control = (isset($meta['control_access']) && is_array($meta['control_access']))
+        ? $meta['control_access']
+        : array();
+    return trim((string)programmit_vpn_secret_decrypt($db, isset($control['sync_token_enc']) ? $control['sync_token_enc'] : ''));
+}
+
+function programmit_vpn_server_control_access($db, $serverRow) {
+    $meta = programmit_vpn_server_meta_array($serverRow);
+    $control = (isset($meta['control_access']) && is_array($meta['control_access']))
+        ? $meta['control_access']
+        : array();
+    $sshUser = programmit_vpn_value_string(isset($control['ssh_user']) ? $control['ssh_user'] : 'root', 64);
+    if ($sshUser === '') {
+        $sshUser = 'root';
+    }
+    $sshPassword = programmit_vpn_server_plain_ssh_password($db, $serverRow);
+    $syncToken = programmit_vpn_server_plain_sync_token($db, $serverRow);
+    $target = programmit_vpn_server_target_host($serverRow);
+    $port = isset($serverRow['server_port']) ? (int)$serverRow['server_port'] : 22;
+    if ($port <= 0) {
+        $port = 22;
+    }
+    return array(
+        'ssh_user' => $sshUser,
+        'ssh_port' => $port,
+        'target' => $target,
+        'has_password' => ($sshPassword !== ''),
+        'has_sync_token' => ($syncToken !== ''),
+        'ready_for_install' => ($target !== '' && $sshPassword !== '' && $syncToken !== ''),
+        'last_test_at' => isset($control['last_test_at']) ? trim((string)$control['last_test_at']) : '',
+        'last_test_status' => isset($control['last_test_status']) ? trim((string)$control['last_test_status']) : '',
+        'last_install_at' => isset($control['last_install_at']) ? trim((string)$control['last_install_at']) : '',
+        'last_install_status' => isset($control['last_install_status']) ? trim((string)$control['last_install_status']) : '',
+        'last_activate_at' => isset($control['last_activate_at']) ? trim((string)$control['last_activate_at']) : '',
+        'last_activate_status' => isset($control['last_activate_status']) ? trim((string)$control['last_activate_status']) : ''
+    );
+}
+
+function programmit_vpn_control_panel_api_base($db) {
+    $controlHost = '';
+    if (function_exists('programmit_saas_get_control_host')) {
+        $controlHost = trim((string)programmit_saas_get_control_host($db));
+    }
+    if ($controlHost !== '') {
+        return 'https://' . $controlHost . '/api';
+    }
+    return rtrim((string)$db->base_url(), '/') . '/api';
+}
+
+function programmit_vpn_build_onboarding_bundle($db, $serverRow, $plainToken = '') {
+    if (!is_array($serverRow) || empty($serverRow)) {
+        return array();
+    }
+
+    $plainToken = trim((string)$plainToken);
+    if ($plainToken === '') {
+        $plainToken = programmit_vpn_server_plain_sync_token($db, $serverRow);
+    }
+
+    $targetHost = trim((string)(isset($serverRow['server_host']) ? $serverRow['server_host'] : ''));
+    $targetIp = trim((string)(isset($serverRow['server_ip']) ? $serverRow['server_ip'] : ''));
+    $targetPort = isset($serverRow['server_port']) ? (int)$serverRow['server_port'] : 22;
+    if ($targetPort <= 0) {
+        $targetPort = 22;
+    }
+
+    $config = array(
+        'panel_base' => programmit_vpn_control_panel_api_base($db),
+        'server_key' => (string)(isset($serverRow['server_key']) ? $serverRow['server_key'] : ''),
+        'sync_token' => $plainToken !== '' ? $plainToken : 'SET_MANUAL_SYNC_TOKEN',
+        'timeout_seconds' => 25,
+        'limit' => 200,
+        'state_dir' => '/opt/programmit/vpn-sync/state',
+        'public_ip' => $targetIp !== '' ? $targetIp : '0.0.0.0',
+        'sync_local_users' => true,
+        'apply_linux_accounts' => true,
+        'manage_linux_passwords' => true,
+        'remove_missing_linux_users' => false,
+        'lock_missing_linux_users' => true,
+        'local_user_prefix' => '',
+        'default_linux_password' => '',
+        'legacy_counter_path' => '/tmp/contador',
+        'skip_user_ids' => array(1),
+        'write_legacy_counter' => true
+    );
+
+    $configJson = json_encode($config, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT);
+    if (!is_string($configJson) || $configJson === '') {
+        $configJson = '{}';
+    }
+
+    $installPreview = "sudo mkdir -p /opt/programmit/vpn-sync/state\n"
+        . "sudo tee /opt/programmit/vpn-sync/config.json >/dev/null <<'EOF'\n"
+        . $configJson . "\nEOF\n"
+        . "sudo chmod 700 /opt/programmit/vpn-sync/state\n"
+        . "sudo chmod 600 /opt/programmit/vpn-sync/config.json\n"
+        . "# Copia tambien estos archivos del repo a la VPS:\n"
+        . "# ops/vpn-sync/agent.py -> /opt/programmit/vpn-sync/agent.py\n"
+        . "# ops/vpn-sync/programmit-vpn-sync.service -> /etc/systemd/system/programmit-vpn-sync.service\n"
+        . "# ops/vpn-sync/programmit-vpn-sync.timer -> /etc/systemd/system/programmit-vpn-sync.timer\n"
+        . "sudo chmod +x /opt/programmit/vpn-sync/agent.py\n"
+        . "sudo systemctl daemon-reload\n"
+        . "sudo systemctl enable --now programmit-vpn-sync.timer\n"
+        . "sudo systemctl start programmit-vpn-sync.service\n"
+        . "sudo systemctl status programmit-vpn-sync.timer --no-pager";
+
+    $serverTarget = $targetHost !== '' ? $targetHost : $targetIp;
+    if ($serverTarget !== '' && $targetPort > 0) {
+        $serverTarget .= ':' . $targetPort;
+    }
+
+    return array(
+        'server_id' => isset($serverRow['id']) ? (int)$serverRow['id'] : 0,
+        'server_name' => trim((string)(isset($serverRow['server_name']) ? $serverRow['server_name'] : '')),
+        'server_target' => $serverTarget,
+        'config' => $config,
+        'config_json' => $configJson,
+        'install_script' => $installPreview,
+        'token_visible' => ($plainToken !== ''),
+        'plain_token' => $plainToken,
+        'control_access' => programmit_vpn_server_control_access($db, $serverRow)
+    );
+}
+
+function programmit_vpn_remote_write_file_snippet($remotePath, $contents, $mode = '600', $privPrefix = 'sudo') {
+    $remotePath = trim((string)$remotePath);
+    $contents = str_replace(array("\r\n", "\r"), "\n", (string)$contents);
+    $mode = trim((string)$mode);
+    $privPrefix = trim((string)$privPrefix);
+
+    if ($remotePath === '') {
+        return '';
+    }
+
+    $delimiter = 'PROGRAMMIT_EOF_' . substr(md5($remotePath . $contents . microtime(true)), 0, 12);
+    $prefix = $privPrefix !== '' ? ($privPrefix . ' ') : '';
+
+    return $prefix . 'tee ' . escapeshellarg($remotePath) . " >/dev/null <<'" . $delimiter . "'\n"
+        . rtrim($contents, "\n") . "\n" . $delimiter . "\n"
+        . $prefix . 'chmod ' . escapeshellarg($mode !== '' ? $mode : '600') . ' ' . escapeshellarg($remotePath) . "\n";
+}
+
+function programmit_vpn_build_remote_agent_install_command($db, $serverRow, $configJson, &$reason) {
+    $reason = '';
+    if (!is_array($serverRow) || empty($serverRow)) {
+        $reason = 'Servidor invalido para instalación remota.';
+        return '';
+    }
+
+    $projectRoot = programmit_vpn_project_root_path();
+    $assetMap = array(
+        array(
+            'label' => 'agent.py',
+            'local' => $projectRoot . DIRECTORY_SEPARATOR . 'ops' . DIRECTORY_SEPARATOR . 'vpn-sync' . DIRECTORY_SEPARATOR . 'agent.py',
+            'remote' => '/opt/programmit/vpn-sync/agent.py',
+            'mode' => '755'
+        ),
+        array(
+            'label' => 'programmit-vpn-sync.service',
+            'local' => $projectRoot . DIRECTORY_SEPARATOR . 'ops' . DIRECTORY_SEPARATOR . 'vpn-sync' . DIRECTORY_SEPARATOR . 'programmit-vpn-sync.service',
+            'remote' => '/etc/systemd/system/programmit-vpn-sync.service',
+            'mode' => '644'
+        ),
+        array(
+            'label' => 'programmit-vpn-sync.timer',
+            'local' => $projectRoot . DIRECTORY_SEPARATOR . 'ops' . DIRECTORY_SEPARATOR . 'vpn-sync' . DIRECTORY_SEPARATOR . 'programmit-vpn-sync.timer',
+            'remote' => '/etc/systemd/system/programmit-vpn-sync.timer',
+            'mode' => '644'
+        )
+    );
+
+    $assetContents = array();
+    foreach ($assetMap as $asset) {
+        $content = programmit_vpn_local_text_file_read($asset['local']);
+        if ($content === '') {
+            $reason = 'No se encontró el asset local ' . $asset['label'] . ' en el panel.';
+            return '';
+        }
+        $assetContents[] = array(
+            'remote' => $asset['remote'],
+            'mode' => $asset['mode'],
+            'content' => $content
+        );
+    }
+
+    $sshUser = strtolower(trim((string)(isset($serverRow['control_access']['ssh_user']) ? $serverRow['control_access']['ssh_user'] : 'root')));
+    $privPrefix = ($sshUser === 'root' || $sshUser === '') ? '' : 'sudo';
+    $commandPrefix = $privPrefix !== '' ? ($privPrefix . ' ') : '';
+
+    $command = "set -e\n";
+    if ($privPrefix !== '') {
+        $command .= "if ! sudo -n true 2>/dev/null; then echo 'Este usuario necesita sudo sin password para instalación automática.'; exit 1; fi\n";
+    }
+    $command .= "command -v python3 >/dev/null 2>&1 || { echo 'python3 no encontrado'; exit 1; }\n";
+    $command .= "command -v systemctl >/dev/null 2>&1 || { echo 'systemctl no encontrado'; exit 1; }\n";
+    $command .= $commandPrefix . "mkdir -p /opt/programmit/vpn-sync/state\n";
+    $command .= programmit_vpn_remote_write_file_snippet('/opt/programmit/vpn-sync/config.json', (string)$configJson, '600', $privPrefix);
+    foreach ($assetContents as $asset) {
+        $command .= programmit_vpn_remote_write_file_snippet($asset['remote'], $asset['content'], $asset['mode'], $privPrefix);
+    }
+    $command .= $commandPrefix . "chmod 700 /opt/programmit/vpn-sync/state\n";
+    $command .= $commandPrefix . "systemctl daemon-reload\n";
+    $command .= $commandPrefix . "systemctl enable --now programmit-vpn-sync.timer\n";
+    $command .= $commandPrefix . "systemctl restart programmit-vpn-sync.service || " . $commandPrefix . "systemctl start programmit-vpn-sync.service\n";
+    $command .= $commandPrefix . "systemctl status programmit-vpn-sync.service --no-pager\n";
+    $command .= $commandPrefix . "systemctl status programmit-vpn-sync.timer --no-pager\n";
+
+    return $command;
+}
+
+function programmit_vpn_server_update_control_access($db, $serverId, $changes) {
+    $serverId = (int)$serverId;
+    if ($serverId <= 0 || !is_array($changes) || empty($changes)) {
+        return false;
+    }
+
+    $qry = $db->sql_query("SELECT meta_json
+        FROM vpn_servers
+        WHERE id='" . $db->SanitizeForSQL($serverId) . "'
+        LIMIT 1");
+    $row = $db->sql_fetchrow($qry);
+    if (!$row) {
+        return false;
+    }
+
+    $meta = programmit_vpn_json_decode(isset($row['meta_json']) ? $row['meta_json'] : '');
+    if (!isset($meta['control_access']) || !is_array($meta['control_access'])) {
+        $meta['control_access'] = array();
+    }
+
+    foreach ($changes as $key => $value) {
+        if (!is_string($key) || $key === '') {
+            continue;
+        }
+        if ($value === null) {
+            unset($meta['control_access'][$key]);
+            continue;
+        }
+        $meta['control_access'][$key] = $value;
+    }
+
+    return (bool)$db->sql_query("UPDATE vpn_servers
+        SET meta_json='" . $db->SanitizeForSQL(programmit_vpn_json_encode($meta)) . "',
+            updated_at=NOW()
+        WHERE id='" . $db->SanitizeForSQL($serverId) . "'
+        LIMIT 1");
 }
 
 function programmit_vpn_is_ip($value) {
@@ -119,6 +663,23 @@ function programmit_vpn_age_seconds($dateValue) {
         return -1;
     }
     return time() - $ts;
+}
+
+function programmit_vpn_age_human($seconds) {
+    $seconds = (int)$seconds;
+    if ($seconds < 0) {
+        return 'sin señal';
+    }
+    if ($seconds < 60) {
+        return 'hace ' . $seconds . 's';
+    }
+    if ($seconds < 3600) {
+        return 'hace ' . floor($seconds / 60) . 'm';
+    }
+    if ($seconds < 86400) {
+        return 'hace ' . floor($seconds / 3600) . 'h';
+    }
+    return 'hace ' . floor($seconds / 86400) . 'd';
 }
 
 function programmit_vpn_server_identity_summary($row) {
@@ -198,9 +759,57 @@ function programmit_vpn_server_identity_summary($row) {
     );
 }
 
+function programmit_vpn_sync_log_reason($details) {
+    if (!is_array($details)) {
+        return '';
+    }
+    foreach (array('reason', 'message', 'error') as $key) {
+        if (isset($details[$key]) && trim((string)$details[$key]) !== '') {
+            return strtolower(trim((string)$details[$key]));
+        }
+    }
+    return '';
+}
+
 function programmit_vpn_server_sync_summary($row) {
     if (!is_array($row)) {
         return array('class' => 'off', 'label' => 'sin sync', 'note' => 'Sin actividad');
+    }
+
+    $serverStatus = strtolower(trim((string)(isset($row['status']) ? $row['status'] : 'active')));
+    $syncEnabled = isset($row['sync_enabled']) ? (int)$row['sync_enabled'] : (isset($row['is_sync_enabled']) ? (int)$row['is_sync_enabled'] : 0);
+    $hasToken = trim((string)(isset($row['sync_token_hash']) ? $row['sync_token_hash'] : '')) !== '';
+    $activeMappings = isset($row['active_mapping_count']) ? (int)$row['active_mapping_count'] : 0;
+    $lastLog = (isset($row['last_log']) && is_array($row['last_log'])) ? $row['last_log'] : array();
+    $lastLogStatus = strtolower(trim((string)(isset($lastLog['status']) ? $lastLog['status'] : '')));
+    $lastReason = programmit_vpn_sync_log_reason(isset($lastLog['details']) ? $lastLog['details'] : array());
+
+    if ($serverStatus === 'disabled') {
+        return array('class' => 'off', 'label' => 'disabled', 'note' => 'Servidor deshabilitado desde el panel');
+    }
+    if ($syncEnabled !== 1) {
+        return array('class' => 'off', 'label' => 'sync off', 'note' => 'La sincronizacion esta apagada');
+    }
+    if (!$hasToken) {
+        return array('class' => 'warn', 'label' => 'sin token', 'note' => 'Falta sync token para autenticar el nodo');
+    }
+    if ($activeMappings <= 0) {
+        return array('class' => 'warn', 'label' => 'sin rutas', 'note' => 'No hay metodos activos enlazados a este VPS');
+    }
+    if ($lastLogStatus === 'error') {
+        $note = 'Revisar el ultimo pull/ack del nodo';
+        $label = 'error';
+        if ($lastReason === 'auth_failed' || $lastReason === 'missing_credentials') {
+            $label = 'auth error';
+            $note = 'Token invalido o credenciales incompletas';
+        } elseif ($lastReason === 'cursor_conflict') {
+            $label = 'cursor';
+            $note = 'El nodo quedo desfasado frente al cursor del panel';
+        } elseif ($lastReason === 'server_disabled') {
+            $label = 'disabled';
+            $note = 'El nodo intento sincronizar, pero esta deshabilitado';
+        }
+        return array('class' => 'off', 'label' => $label, 'note' => $note);
     }
 
     $candidates = array(
@@ -221,15 +830,113 @@ function programmit_vpn_server_sync_summary($row) {
     }
 
     if ($bestAge < 0) {
-        return array('class' => 'off', 'label' => 'sin sync', 'note' => 'No hay pull/ack recientes');
+        return array('class' => 'warn', 'label' => 'pendiente', 'note' => 'El nodo existe pero aun no reporta pull/ack');
     }
     if ($bestAge <= 180) {
-        return array('class' => 'ok', 'label' => 'al dia', 'note' => 'Sync reciente');
+        return array('class' => 'ok', 'label' => 'online', 'note' => 'Pull/ack reciente');
     }
     if ($bestAge <= 900) {
-        return array('class' => 'warn', 'label' => 'atrasado', 'note' => 'Revisar pull/ack del nodo');
+        return array('class' => 'warn', 'label' => 'delay', 'note' => 'El nodo sincroniza, pero esta atrasado');
     }
-    return array('class' => 'off', 'label' => 'sin contacto', 'note' => 'El nodo no reporta hace rato');
+    return array('class' => 'off', 'label' => 'offline', 'note' => 'El nodo no reporta hace rato');
+}
+
+function programmit_vpn_server_health_summary($row) {
+    if (!is_array($row)) {
+        return array(
+            'class' => 'off',
+            'label' => 'sin datos',
+            'note' => 'No hay datos del nodo',
+            'online' => array('class' => 'off', 'label' => 'offline'),
+            'agent' => array('class' => 'off', 'label' => 'agent off'),
+            'sync' => array('class' => 'off', 'label' => 'sync off'),
+            'last_signal' => 'sin señal'
+        );
+    }
+
+    $syncState = isset($row['sync_state']) && is_array($row['sync_state'])
+        ? $row['sync_state']
+        : programmit_vpn_server_sync_summary($row);
+    $identityState = isset($row['identity_state']) && is_array($row['identity_state'])
+        ? $row['identity_state']
+        : programmit_vpn_server_identity_summary($row);
+
+    $candidateDates = array(
+        isset($row['last_ack_at']) ? $row['last_ack_at'] : '',
+        isset($row['last_sync_at']) ? $row['last_sync_at'] : '',
+        isset($row['last_seen_at']) ? $row['last_seen_at'] : '',
+        isset($row['runtime_collected_at_utc']) ? $row['runtime_collected_at_utc'] : ''
+    );
+    $bestAge = -1;
+    foreach ($candidateDates as $candidateDate) {
+        $candidateAge = programmit_vpn_age_seconds($candidateDate);
+        if ($candidateAge < 0) {
+            continue;
+        }
+        if ($bestAge < 0 || $candidateAge < $bestAge) {
+            $bestAge = $candidateAge;
+        }
+    }
+
+    $onlineChip = array('class' => 'off', 'label' => 'offline');
+    if ($bestAge >= 0 && $bestAge <= 180) {
+        $onlineChip = array('class' => 'ok', 'label' => 'online');
+    } elseif ($bestAge >= 0 && $bestAge <= 900) {
+        $onlineChip = array('class' => 'warn', 'label' => 'delay');
+    } elseif ($bestAge >= 0) {
+        $onlineChip = array('class' => 'off', 'label' => 'offline');
+    } elseif (
+        trim((string)(isset($row['runtime_hostname']) ? $row['runtime_hostname'] : '')) !== ''
+        || trim((string)(isset($row['runtime_fqdn']) ? $row['runtime_fqdn'] : '')) !== ''
+        || trim((string)(isset($row['runtime_request_ip']) ? $row['runtime_request_ip'] : '')) !== ''
+    ) {
+        $onlineChip = array('class' => 'warn', 'label' => 'runtime');
+    }
+
+    $agentChip = array('class' => 'off', 'label' => 'agent off');
+    $agentVersion = trim((string)(isset($row['runtime_agent_version']) ? $row['runtime_agent_version'] : ''));
+    if ($agentVersion !== '') {
+        $agentChip = array('class' => 'ok', 'label' => 'agent ok');
+    } elseif ($identityState['class'] === 'ok' || $identityState['class'] === 'warn') {
+        $agentChip = array('class' => 'warn', 'label' => 'runtime');
+    }
+
+    $syncChip = array(
+        'class' => isset($syncState['class']) ? $syncState['class'] : 'off',
+        'label' => isset($syncState['label']) ? $syncState['label'] : 'sync off'
+    );
+
+    $healthClass = 'warn';
+    $healthLabel = 'atencion';
+    $healthNote = '';
+
+    if ($onlineChip['class'] === 'ok' && $agentChip['class'] === 'ok' && $syncChip['class'] === 'ok') {
+        $healthClass = 'ok';
+        $healthLabel = 'salud ok';
+        $healthNote = 'Nodo operativo y sincronizando bien';
+    } elseif ($syncChip['class'] === 'off' && in_array($syncChip['label'], array('disabled', 'sync off', 'offline', 'auth error', 'error'), true)) {
+        $healthClass = 'off';
+        $healthLabel = $syncChip['label'] === 'disabled' ? 'desactivado' : 'offline';
+        $healthNote = isset($syncState['note']) ? (string)$syncState['note'] : 'El nodo no esta respondiendo correctamente';
+    } elseif ($onlineChip['class'] === 'off' && $agentChip['class'] === 'off') {
+        $healthClass = 'off';
+        $healthLabel = 'sin señal';
+        $healthNote = 'El nodo todavia no reporta agent ni pull';
+    } else {
+        $healthNote = isset($syncState['note']) && trim((string)$syncState['note']) !== ''
+            ? (string)$syncState['note']
+            : (isset($identityState['note']) ? (string)$identityState['note'] : 'Revisar estado del nodo');
+    }
+
+    return array(
+        'class' => $healthClass,
+        'label' => $healthLabel,
+        'note' => $healthNote,
+        'online' => $onlineChip,
+        'agent' => $agentChip,
+        'sync' => $syncChip,
+        'last_signal' => programmit_vpn_age_human($bestAge)
+    );
 }
 
 function programmit_vpn_agent_runtime_normalize($runtime, $requestIp = '') {
@@ -1052,6 +1759,269 @@ function programmit_vpn_can_manage($userId, $userLevel) {
     return ($userId === 1 || in_array($userLevel, array('superadmin', 'administrator', 'subadmin'), true));
 }
 
+function programmit_vpn_legacy_categories() {
+    return array('premium', 'vip', 'private', 'free');
+}
+
+function programmit_vpn_legacy_category($value) {
+    $value = programmit_vpn_normalize_key($value);
+    if ($value === '') {
+        return '';
+    }
+    return in_array($value, programmit_vpn_legacy_categories(), true) ? $value : '';
+}
+
+function programmit_vpn_legacy_table_available() {
+    return function_exists('table_exists_cached') && table_exists_cached('server_list');
+}
+
+function programmit_vpn_legacy_meta_value($meta, $keys, $default = '') {
+    if (!is_array($keys)) {
+        $keys = array($keys);
+    }
+    $containers = array();
+    if (is_array($meta)) {
+        if (isset($meta['legacy_bridge']) && is_array($meta['legacy_bridge'])) {
+            $containers[] = $meta['legacy_bridge'];
+        }
+        if (isset($meta['legacy']) && is_array($meta['legacy'])) {
+            $containers[] = $meta['legacy'];
+        }
+        $containers[] = $meta;
+    }
+    foreach ($containers as $container) {
+        foreach ($keys as $key) {
+            if (isset($container[$key]) && !is_array($container[$key])) {
+                $value = trim((string)$container[$key]);
+                if ($value !== '') {
+                    return $value;
+                }
+            }
+        }
+    }
+    return trim((string)$default);
+}
+
+function programmit_vpn_build_legacy_bridge_payload($serverRow) {
+    $meta = programmit_vpn_json_decode(isset($serverRow['meta_json']) ? $serverRow['meta_json'] : '');
+    $category = programmit_vpn_legacy_category(isset($serverRow['legacy_category']) ? $serverRow['legacy_category'] : '');
+    $payload = array(
+        'ready' => false,
+        'reason' => '',
+        'category' => $category,
+        'server_name' => trim((string)(isset($serverRow['server_name']) ? $serverRow['server_name'] : '')),
+        'server_ip' => trim((string)(isset($serverRow['server_ip']) ? $serverRow['server_ip'] : '')),
+        'server_port' => isset($serverRow['server_port']) ? (int)$serverRow['server_port'] : 0,
+        'server_folder' => '',
+        'server_tcp' => '',
+        'server_parser' => '',
+        'status' => 0,
+        'meta' => $meta
+    );
+
+    if ($payload['server_name'] === '') {
+        $payload['server_name'] = trim((string)(isset($serverRow['server_key']) ? $serverRow['server_key'] : ''));
+    }
+    $legacyPort = (int)programmit_vpn_legacy_meta_value($meta, array('legacy_server_port', 'server_port_legacy'), '0');
+    if ($legacyPort > 0) {
+        $payload['server_port'] = $legacyPort;
+    }
+    if ($payload['server_port'] <= 0) {
+        $payload['server_port'] = 80;
+    }
+    $payload['server_folder'] = programmit_vpn_legacy_meta_value($meta, array('legacy_server_folder', 'server_folder'), isset($serverRow['server_key']) ? $serverRow['server_key'] : '');
+    $payload['server_tcp'] = programmit_vpn_legacy_meta_value($meta, array('legacy_server_tcp', 'server_tcp'), 'tcp1');
+    $payload['server_parser'] = programmit_vpn_legacy_meta_value($meta, array('legacy_server_parser', 'server_parser', 'status_parser', 'parser_url'), '');
+    if ($payload['server_parser'] === '') {
+        $publicBaseUrl = trim((string)(isset($serverRow['public_base_url']) ? $serverRow['public_base_url'] : ''));
+        if ($publicBaseUrl !== '' && programmit_vpn_is_http_url($publicBaseUrl)) {
+            $payload['server_parser'] = rtrim($publicBaseUrl, '/');
+        }
+    }
+    $payload['status'] = (
+        strtolower(trim((string)(isset($serverRow['status']) ? $serverRow['status'] : 'active'))) === 'active'
+        && (int)(isset($serverRow['sync_enabled']) ? $serverRow['sync_enabled'] : 0) === 1
+    ) ? 1 : 0;
+
+    if ($payload['category'] === '') {
+        $payload['reason'] = 'no_category';
+        return $payload;
+    }
+    if (!programmit_vpn_is_ip($payload['server_ip'])) {
+        $payload['reason'] = 'invalid_ip';
+        return $payload;
+    }
+    if ($payload['server_parser'] === '') {
+        $payload['reason'] = 'missing_parser';
+        return $payload;
+    }
+
+    $payload['ready'] = true;
+    return $payload;
+}
+
+function programmit_vpn_find_legacy_server_row($db, $serverRow, $bridgePayload = array()) {
+    if (!programmit_vpn_legacy_table_available() || !is_array($serverRow)) {
+        return null;
+    }
+    $meta = programmit_vpn_json_decode(isset($serverRow['meta_json']) ? $serverRow['meta_json'] : '');
+    $legacyServerId = (int)programmit_vpn_legacy_meta_value($meta, array('legacy_server_id', 'server_id'), '0');
+    if ($legacyServerId > 0) {
+        $qry = $db->sql_query("SELECT * FROM server_list
+            WHERE server_id='" . $db->SanitizeForSQL($legacyServerId) . "'
+            LIMIT 1");
+        $row = $db->sql_fetchrow($qry);
+        if ($row) {
+            return $row;
+        }
+    }
+
+    $category = isset($bridgePayload['category']) ? (string)$bridgePayload['category'] : programmit_vpn_legacy_category(isset($serverRow['legacy_category']) ? $serverRow['legacy_category'] : '');
+    $serverIp = trim((string)(isset($serverRow['server_ip']) ? $serverRow['server_ip'] : ''));
+    if ($category !== '' && $serverIp !== '') {
+        $qry = $db->sql_query("SELECT * FROM server_list
+            WHERE server_category='" . $db->SanitizeForSQL($category) . "'
+              AND server_ip='" . $db->SanitizeForSQL($serverIp) . "'
+            ORDER BY server_id ASC
+            LIMIT 1");
+        $row = $db->sql_fetchrow($qry);
+        if ($row) {
+            return $row;
+        }
+    }
+
+    $serverName = trim((string)(isset($serverRow['server_name']) ? $serverRow['server_name'] : ''));
+    if ($category !== '' && $serverName !== '') {
+        $qry = $db->sql_query("SELECT * FROM server_list
+            WHERE server_category='" . $db->SanitizeForSQL($category) . "'
+              AND server_name='" . $db->SanitizeForSQL($serverName) . "'
+            ORDER BY server_id ASC
+            LIMIT 1");
+        $row = $db->sql_fetchrow($qry);
+        if ($row) {
+            return $row;
+        }
+    }
+
+    return null;
+}
+
+function programmit_vpn_sync_server_to_legacy($db, $serverId) {
+    $serverId = (int)$serverId;
+    if ($serverId <= 0) {
+        return array('ok' => false, 'state' => 'invalid_server', 'message' => 'Servidor invalido.');
+    }
+    if (!programmit_vpn_legacy_table_available()) {
+        return array('ok' => true, 'state' => 'table_missing', 'message' => 'Tabla legacy server_list no disponible.');
+    }
+
+    $qry = $db->sql_query("SELECT *
+        FROM vpn_servers
+        WHERE id='" . $db->SanitizeForSQL($serverId) . "'
+        LIMIT 1");
+    $serverRow = $db->sql_fetchrow($qry);
+    if (!$serverRow) {
+        return array('ok' => false, 'state' => 'not_found', 'message' => 'Servidor no encontrado.');
+    }
+
+    $bridgePayload = programmit_vpn_build_legacy_bridge_payload($serverRow);
+    $legacyRow = programmit_vpn_find_legacy_server_row($db, $serverRow, $bridgePayload);
+
+    if ($legacyRow) {
+        if ($bridgePayload['server_parser'] === '' && trim((string)(isset($legacyRow['server_parser']) ? $legacyRow['server_parser'] : '')) !== '') {
+            $bridgePayload['server_parser'] = trim((string)$legacyRow['server_parser']);
+        }
+        if ($bridgePayload['server_folder'] === '' && trim((string)(isset($legacyRow['server_folder']) ? $legacyRow['server_folder'] : '')) !== '') {
+            $bridgePayload['server_folder'] = trim((string)$legacyRow['server_folder']);
+        }
+        if ($bridgePayload['server_tcp'] === '' && trim((string)(isset($legacyRow['server_tcp']) ? $legacyRow['server_tcp'] : '')) !== '') {
+            $bridgePayload['server_tcp'] = trim((string)$legacyRow['server_tcp']);
+        }
+        if ($bridgePayload['server_parser'] !== '') {
+            $bridgePayload['ready'] = true;
+            $bridgePayload['reason'] = '';
+        }
+    }
+
+    if (!$bridgePayload['ready']) {
+        $message = 'Legacy omitido.';
+        if ($bridgePayload['reason'] === 'no_category') {
+            $message = 'Legacy omitido: falta Legacy group compatible.';
+        } elseif ($bridgePayload['reason'] === 'invalid_ip') {
+            $message = 'Legacy omitido: la IP del VPS no es valida.';
+        } elseif ($bridgePayload['reason'] === 'missing_parser') {
+            $message = 'Legacy pendiente: falta server_parser legacy.';
+        }
+        return array('ok' => true, 'state' => $bridgePayload['reason'] !== '' ? $bridgePayload['reason'] : 'skipped', 'message' => $message);
+    }
+
+    $legacyName = trim((string)$bridgePayload['server_name']);
+    if ($legacyName === '') {
+        $legacyName = trim((string)(isset($serverRow['server_key']) ? $serverRow['server_key'] : 'VPS'));
+    }
+    $legacyFolder = trim((string)$bridgePayload['server_folder']) !== '' ? trim((string)$bridgePayload['server_folder']) : trim((string)(isset($serverRow['server_key']) ? $serverRow['server_key'] : 'node'));
+    $legacyTcp = trim((string)$bridgePayload['server_tcp']) !== '' ? trim((string)$bridgePayload['server_tcp']) : 'tcp1';
+    $legacyParser = trim((string)$bridgePayload['server_parser']);
+    $legacyId = 0;
+
+    if ($legacyRow) {
+        $legacyId = (int)$legacyRow['server_id'];
+        $ok = $db->sql_query("UPDATE server_list
+            SET server_name='" . $db->SanitizeForSQL($legacyName) . "',
+                server_ip='" . $db->SanitizeForSQL((string)$bridgePayload['server_ip']) . "',
+                server_category='" . $db->SanitizeForSQL((string)$bridgePayload['category']) . "',
+                server_port='" . $db->SanitizeForSQL((int)$bridgePayload['server_port']) . "',
+                server_folder='" . $db->SanitizeForSQL($legacyFolder) . "',
+                server_tcp='" . $db->SanitizeForSQL($legacyTcp) . "',
+                server_parser='" . $db->SanitizeForSQL($legacyParser) . "',
+                status='" . $db->SanitizeForSQL((int)$bridgePayload['status']) . "'
+            WHERE server_id='" . $db->SanitizeForSQL($legacyId) . "'
+            LIMIT 1");
+        if (!$ok) {
+            return array('ok' => false, 'state' => 'legacy_update_failed', 'message' => 'No se pudo actualizar server_list.');
+        }
+    } else {
+        $ok = $db->sql_query("INSERT INTO server_list
+            (server_name, server_ip, server_category, server_port, server_folder, server_tcp, server_parser, status)
+            VALUES
+            ('" . $db->SanitizeForSQL($legacyName) . "',
+             '" . $db->SanitizeForSQL((string)$bridgePayload['server_ip']) . "',
+             '" . $db->SanitizeForSQL((string)$bridgePayload['category']) . "',
+             '" . $db->SanitizeForSQL((int)$bridgePayload['server_port']) . "',
+             '" . $db->SanitizeForSQL($legacyFolder) . "',
+             '" . $db->SanitizeForSQL($legacyTcp) . "',
+             '" . $db->SanitizeForSQL($legacyParser) . "',
+             '" . $db->SanitizeForSQL((int)$bridgePayload['status']) . "')");
+        if (!$ok) {
+            return array('ok' => false, 'state' => 'legacy_insert_failed', 'message' => 'No se pudo crear server_list.');
+        }
+        $legacyId = method_exists($db, 'sql_nextid') ? (int)$db->sql_nextid() : 0;
+    }
+
+    $meta = $bridgePayload['meta'];
+    if (!isset($meta['legacy_bridge']) || !is_array($meta['legacy_bridge'])) {
+        $meta['legacy_bridge'] = array();
+    }
+    $meta['legacy_bridge']['server_id'] = $legacyId;
+    $meta['legacy_bridge']['server_category'] = (string)$bridgePayload['category'];
+    $meta['legacy_bridge']['server_parser'] = $legacyParser;
+    $meta['legacy_bridge']['server_folder'] = $legacyFolder;
+    $meta['legacy_bridge']['server_tcp'] = $legacyTcp;
+    $meta['legacy_bridge']['synced_at'] = date('Y-m-d H:i:s');
+    $db->sql_query("UPDATE vpn_servers
+        SET meta_json='" . $db->SanitizeForSQL(programmit_vpn_json_encode($meta)) . "',
+            updated_at=NOW()
+        WHERE id='" . $db->SanitizeForSQL($serverId) . "'
+        LIMIT 1");
+
+    return array(
+        'ok' => true,
+        'state' => 'synced',
+        'server_list_id' => $legacyId,
+        'message' => $legacyRow ? 'Legacy actualizado en server_list.' : 'Legacy creado en server_list.'
+    );
+}
+
 function programmit_vpn_seed_methods($db) {
     $defaults = array(
         array('method_key' => 'premium', 'method_name' => 'Premium', 'method_type' => 'premium', 'legacy_group' => 'premium', 'auth_mode' => 'local', 'is_public' => 1, 'sort_order' => 10, 'config_json' => array('source' => 'legacy')),
@@ -1246,9 +2216,52 @@ function programmit_vpn_ensure_tables($db) {
     return true;
 }
 
+function programmit_vpn_server_mapping_stats($db) {
+    $stats = array();
+    $qry = $db->sql_query("SELECT ms.server_id,
+            COUNT(*) AS total_count,
+            COALESCE(SUM(CASE WHEN ms.is_active='1' AND m.is_active='1' THEN 1 ELSE 0 END),0) AS active_count
+        FROM vpn_method_server_map ms
+        INNER JOIN vpn_methods m ON m.id=ms.method_id
+        GROUP BY ms.server_id");
+    while ($row = $db->sql_fetchrow($qry)) {
+        if (!$row || !isset($row['server_id'])) {
+            continue;
+        }
+        $stats[(int)$row['server_id']] = array(
+            'total_count' => isset($row['total_count']) ? (int)$row['total_count'] : 0,
+            'active_count' => isset($row['active_count']) ? (int)$row['active_count'] : 0
+        );
+    }
+    return $stats;
+}
+
+function programmit_vpn_server_last_log_map($db) {
+    $map = array();
+    $qry = $db->sql_query("SELECT l.*
+        FROM vpn_sync_logs l
+        INNER JOIN (
+            SELECT server_id, MAX(id) AS max_id
+            FROM vpn_sync_logs
+            WHERE server_id > 0
+            GROUP BY server_id
+        ) x ON x.max_id=l.id
+        ORDER BY l.server_id ASC");
+    while ($row = $db->sql_fetchrow($qry)) {
+        if (!$row || !isset($row['server_id'])) {
+            continue;
+        }
+        $row['details'] = programmit_vpn_json_decode(isset($row['details_json']) ? $row['details_json'] : '');
+        $map[(int)$row['server_id']] = $row;
+    }
+    return $map;
+}
+
 function programmit_vpn_list_servers($db) {
     programmit_vpn_ensure_tables($db);
     $rows = array();
+    $mappingStats = programmit_vpn_server_mapping_stats($db);
+    $lastLogMap = programmit_vpn_server_last_log_map($db);
     $qry = $db->sql_query("SELECT *
         FROM vpn_servers
         ORDER BY server_name ASC, id ASC");
@@ -1297,6 +2310,10 @@ function programmit_vpn_list_servers($db) {
         }
         $row['public_payload'] = programmit_vpn_json_decode(isset($row['public_payload_json']) ? $row['public_payload_json'] : '');
         $row['meta'] = programmit_vpn_json_decode(isset($row['meta_json']) ? $row['meta_json'] : '');
+        $serverId = isset($row['id']) ? (int)$row['id'] : 0;
+        $row['mapping_total_count'] = isset($mappingStats[$serverId]['total_count']) ? (int)$mappingStats[$serverId]['total_count'] : 0;
+        $row['active_mapping_count'] = isset($mappingStats[$serverId]['active_count']) ? (int)$mappingStats[$serverId]['active_count'] : 0;
+        $row['last_log'] = isset($lastLogMap[$serverId]) ? $lastLogMap[$serverId] : array();
         $row['runtime'] = (isset($row['meta']['agent_runtime']) && is_array($row['meta']['agent_runtime']))
             ? $row['meta']['agent_runtime']
             : array();
@@ -1323,6 +2340,8 @@ function programmit_vpn_list_servers($db) {
         $row['runtime_ssh_md5_summary'] = implode(' | ', $sshMd5);
         $row['identity_state'] = programmit_vpn_server_identity_summary($row);
         $row['sync_state'] = programmit_vpn_server_sync_summary($row);
+        $row['control_access'] = programmit_vpn_server_control_access($db, $row);
+        $row['health_state'] = programmit_vpn_server_health_summary($row);
         $rows[] = $row;
     }
     return $rows;
