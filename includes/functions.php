@@ -43,7 +43,42 @@ function programmit_collect_user_cookie_candidates() {
 	return array_values(array_unique(array_filter($candidates, 'strlen')));
 }
 
+function programmit_is_admin_embed_request() {
+	$embedRaw = isset($_GET['embed']) ? strtolower(trim((string)$_GET['embed'])) : '';
+	return in_array($embedRaw, array('1', 'admin', 'yes'), true);
+}
+
+function programmit_admin_embed_user_cookie_candidate() {
+	global $db;
+	if (!programmit_is_admin_embed_request()) {
+		return '';
+	}
+	if (!isset($_COOKIE['panel_admin_auth']) || trim((string)$_COOKIE['panel_admin_auth']) === '') {
+		return '';
+	}
+	$raw = $db->decrypt_key((string)$_COOKIE['panel_admin_auth']);
+	if (!is_string($raw) || $raw === '') {
+		return '';
+	}
+	$parts = explode('|', $raw);
+	if (!isset($parts[0], $parts[1], $parts[2])) {
+		return '';
+	}
+	$userId = (int)$parts[0];
+	$userName = trim((string)$parts[1]);
+	$userPass = trim((string)$parts[2]);
+	if ($userId <= 0 || $userName === '' || $userPass === '') {
+		return '';
+	}
+	return $db->encrypt_key(addslashes($userId . '|' . $userName . '|' . $userPass));
+}
+
 $programmit_user_cookie_candidates = programmit_collect_user_cookie_candidates();
+$programmit_embed_admin_user_cookie = programmit_admin_embed_user_cookie_candidate();
+if ($programmit_embed_admin_user_cookie !== '') {
+	$programmit_user_cookie_candidates[] = $programmit_embed_admin_user_cookie;
+}
+$programmit_user_cookie_candidates = array_values(array_unique(array_filter($programmit_user_cookie_candidates, 'strlen')));
 $user = '';
 foreach ($programmit_user_cookie_candidates as $_userCookieCandidate) {
 	$_normalizedUserCookie = programmit_normalize_user_cookie_value($_userCookieCandidate);
@@ -142,6 +177,15 @@ if (!empty($programmit_user_cookie_candidates)) {
 			break;
 		}
 	}
+}
+
+if ($user !== '' && programmit_is_admin_embed_request() && !isset($_COOKIE['user'])) {
+	if (function_exists('programmit_secure_set_cookie')) {
+		programmit_secure_set_cookie('user', $user, time() + 86400, '/');
+	} else {
+		setcookie('user', $user, time() + 86400, '/');
+	}
+	$_COOKIE['user'] = $user;
 }
 global $user, $db;
 $user_id_2 = 0;
